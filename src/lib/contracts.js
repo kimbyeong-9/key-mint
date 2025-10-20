@@ -7,6 +7,7 @@ import { CHAIN_ID } from './wagmi';
 export const CONTRACTS = {
   [CHAIN_ID]: {
     UserRegistry: '0x0000000000000000000000000000000000000000', // 배포 후 업데이트
+    UserRegistryEnhanced: '0x0000000000000000000000000000000000000000', // 배포 후 업데이트
     VaultNFT: '0x0000000000000000000000000000000000000000',     // 배포 후 업데이트
     Marketplace: '0x0000000000000000000000000000000000000000',  // 배포 후 업데이트
   }
@@ -24,5 +25,6 @@ export const getContractAddress = (contractName) => {
 
 // 임시 ABI (실제 컨트랙트 배포 후 교체)
 export const REGISTRY_ABI = [];
+export const REGISTRY_ENHANCED_ABI = [];
 export const NFT_ABI = [];
 export const MARKET_ABI = [];

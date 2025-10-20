@@ -1,13 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import styled from 'styled-components';
-import { useAccount } from 'wagmi';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useUser } from '../contexts/UserContext';
+import { signInWithEmail } from '../lib/supabase';
 
 const Container = styled.div`
   min-height: calc(100vh - 200px);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: ${({ theme }) => theme.spacing(4)} ${({ theme }) => theme.spacing(3)};
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
+    padding: ${({ theme }) => theme.spacing(3)} ${({ theme }) => theme.spacing(2)};
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    padding: ${({ theme }) => theme.spacing(2)};
+    align-items: flex-start;
+  }
 `;
 
 const LoginBox = styled.div`
@@ -18,6 +30,15 @@ const LoginBox = styled.div`
   border-radius: ${({ theme }) => theme.radius.lg};
   padding: ${({ theme }) => theme.spacing(4)};
   box-shadow: ${({ theme }) => theme.shadow.lg};
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
+    padding: ${({ theme }) => theme.spacing(3)};
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    padding: ${({ theme }) => theme.spacing(2)};
+    border-radius: ${({ theme }) => theme.radius.md};
+  }
 `;
 
 const Title = styled.h1`
@@ -180,19 +201,88 @@ const SignupLink = styled.div`
 
 function Login() {
   const navigate = useNavigate();
-  const { isConnected } = useAccount();
+  const { setUser } = useUser();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // 컴포넌트 마운트 시 필드 초기화
+  useEffect(() => {
+    setEmail('');
+    setPassword('');
+    
+    // DOM이 렌더링된 후 필드 값 강제 초기화
+    const timer = setTimeout(() => {
+      const emailInput = document.getElementById('email');
+      const passwordInput = document.getElementById('password');
+      
+      if (emailInput) {
+        emailInput.value = '';
+        emailInput.setAttribute('autocomplete', 'new-email');
+      }
+      if (passwordInput) {
+        passwordInput.value = '';
+        passwordInput.setAttribute('autocomplete', 'new-password');
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError('');
 
-    // TODO: 실제 로그인 API 연동
-    console.log('Login:', { email, password });
+    try {
+      console.log('🔍 로그인 시도:', { email });
 
-    // 임시: 로그인 성공 시 홈으로 이동
-    alert('로그인 기능은 백엔드 API 연동 후 작동합니다.');
-    // navigate('/');
+      // Supabase Auth를 사용한 로그인
+      const authResult = await signInWithEmail(email, password);
+      
+      if (authResult.user) {
+        console.log('✅ Auth 로그인 성공:', authResult.user);
+        
+        // 사용자 정보를 UserContext에 설정
+        const userData = {
+          id: authResult.user.id,
+          email: authResult.user.email,
+          username: authResult.user.user_metadata?.username || 'Unknown',
+          address: authResult.user.user_metadata?.address || null,
+          wallet_address: authResult.user.user_metadata?.wallet_address || null,
+          is_web3_user: authResult.user.user_metadata?.is_web3_user || false,
+          created_at: authResult.user.created_at,
+        };
+
+        // UserContext의 setUser 함수 호출
+        setUser(userData);
+        
+        alert(`로그인 성공! 환영합니다, ${userData.username}님!`);
+        navigate('/');
+      } else {
+        alert('로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.');
+      }
+    } catch (error) {
+      console.error('❌ 로그인 오류:', error);
+      
+      // Supabase Auth 오류 메시지 처리
+      let errorMessage = '로그인에 실패했습니다.';
+      
+      if (error.message.includes('Invalid login credentials')) {
+        errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
+      } else if (error.message.includes('Email not confirmed') || error.message.includes('email_not_confirmed')) {
+        errorMessage = '이메일 인증이 필요합니다. 잠시 후 다시 시도해주세요.';
+      } else if (error.message.includes('Too many requests')) {
+        errorMessage = '너무 많은 로그인 시도가 있었습니다. 잠시 후 다시 시도해주세요.';
+      } else {
+        errorMessage = `로그인 오류: ${error.message}`;
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleLogin = async () => {
@@ -212,15 +302,34 @@ function Login() {
         <Title>로그인</Title>
         <Subtitle>Key Mint에 오신 것을 환영합니다</Subtitle>
 
-        <Form onSubmit={handleSubmit}>
+        <Form 
+          onSubmit={handleSubmit} 
+          autoComplete="off"
+          data-lpignore="true"
+          data-1p-ignore="true"
+        >
+          {/* 더미 필드로 자동완성 혼란시키기 */}
+          <div style={{ display: 'none' }}>
+            <input type="text" name="fake-username" autoComplete="username" />
+            <input type="password" name="fake-password" autoComplete="current-password" />
+          </div>
+          
           <InputGroup>
             <Label htmlFor="email">이메일</Label>
             <Input
               type="email"
               id="email"
+              name="login-email"
               placeholder="이메일을 입력하세요"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="new-email"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
+              data-form-type="other"
+              data-lpignore="true"
+              data-1p-ignore="true"
               required
             />
           </InputGroup>
@@ -230,14 +339,39 @@ function Login() {
             <Input
               type="password"
               id="password"
+              name="login-password"
               placeholder="비밀번호를 입력하세요"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
+              data-form-type="other"
+              data-lpignore="true"
+              data-1p-ignore="true"
               required
             />
           </InputGroup>
 
-          <Button type="submit">로그인</Button>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? '로그인 중...' : '로그인'}
+          </Button>
+
+          {error && (
+            <div style={{ 
+              color: '#ef4444', 
+              fontSize: '14px', 
+              textAlign: 'center', 
+              marginTop: '10px',
+              padding: '8px',
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '6px'
+            }}>
+              {error}
+            </div>
+          )}
 
           <LinkGroup>
             <StyledLink to="#">아이디 찾기</StyledLink>
@@ -258,6 +392,14 @@ function Login() {
           </svg>
           구글로 로그인
         </GoogleButton>
+
+        <Divider>
+          <span>또는</span>
+        </Divider>
+
+        <div style={{ textAlign: 'center' }}>
+          <ConnectButton />
+        </div>
 
         <SignupLink>
           계정이 없으신가요?

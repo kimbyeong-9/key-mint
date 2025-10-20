@@ -1,20 +1,13 @@
 // Vercel Serverless Function - User Management
-// 사용자 데이터 CRUD 처리
+// Supabase를 사용한 사용자 데이터 CRUD 처리
 
-/**
- * 사용자 관리 API
- *
- * DB 연결 옵션:
- * 1. Vercel Postgres: https://vercel.com/docs/storage/vercel-postgres
- * 2. PlanetScale (MySQL): https://planetscale.com/
- * 3. Neon (PostgreSQL): https://neon.tech/
- * 4. Supabase: https://supabase.com/
- *
- * 여기서는 간단한 예시를 제공하며, 실제로는 DB 연결이 필요합니다.
- */
+import { createClient } from '@supabase/supabase-js';
 
-// 임시 메모리 저장소 (실제로는 DB 사용)
-const users = new Map();
+// Supabase 클라이언트 생성 (서버사이드)
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
   const { method } = req;
@@ -61,28 +54,44 @@ async function createUser(req, res) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  // 중복 확인
-  if (users.has(address)) {
-    return res.status(409).json({ error: 'User already exists' });
+  try {
+    // 중복 확인
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('address')
+      .eq('address', address)
+      .single();
+
+    if (existingUser) {
+      return res.status(409).json({ error: 'User already exists' });
+    }
+
+    // 사용자 생성
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{ address, username, email }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase insert error:', error);
+      return res.status(500).json({ error: 'Failed to create user', message: error.message });
+    }
+
+    return res.status(201).json({
+      success: true,
+      user: {
+        address: data.address,
+        username: data.username,
+        email: data.email,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      },
+    });
+  } catch (error) {
+    console.error('Create user error:', error);
+    return res.status(500).json({ error: 'Failed to create user', message: error.message });
   }
-
-  // 사용자 생성
-  const user = {
-    address,
-    username,
-    email,
-    createdAt: new Date().toISOString(),
-  };
-
-  users.set(address, user);
-
-  // TODO: 실제 DB에 저장
-  // const result = await db.users.create({ data: user });
-
-  return res.status(201).json({
-    success: true,
-    user,
-  });
 }
 
 // 사용자 조회
@@ -93,16 +102,35 @@ async function getUser(req, res) {
     return res.status(400).json({ error: 'Missing address parameter' });
   }
 
-  const user = users.get(address);
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('address', address)
+      .single();
 
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // Not found
+        return res.status(404).json({ error: 'User not found' });
+      }
+      console.error('Supabase select error:', error);
+      return res.status(500).json({ error: 'Failed to get user', message: error.message });
+    }
+
+    return res.status(200).json({
+      user: {
+        address: data.address,
+        username: data.username,
+        email: data.email,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      },
+    });
+  } catch (error) {
+    console.error('Get user error:', error);
+    return res.status(500).json({ error: 'Failed to get user', message: error.message });
   }
-
-  // TODO: 실제 DB에서 조회
-  // const user = await db.users.findUnique({ where: { address } });
-
-  return res.status(200).json({ user });
 }
 
 // 사용자 정보 업데이트
@@ -113,26 +141,46 @@ async function updateUser(req, res) {
     return res.status(400).json({ error: 'Missing address' });
   }
 
-  const user = users.get(address);
-
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
+  if (!username && !email) {
+    return res.status(400).json({ error: 'No fields to update' });
   }
 
-  // 업데이트
-  if (username) user.username = username;
-  if (email) user.email = email;
-  user.updatedAt = new Date().toISOString();
+  try {
+    // 업데이트할 필드 준비
+    const updates = {};
+    if (username) updates.username = username;
+    if (email) updates.email = email;
+    updates.updated_at = new Date().toISOString();
 
-  users.set(address, user);
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('address', address)
+      .select()
+      .single();
 
-  // TODO: 실제 DB에 업데이트
-  // const result = await db.users.update({ where: { address }, data: { username, email } });
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      console.error('Supabase update error:', error);
+      return res.status(500).json({ error: 'Failed to update user', message: error.message });
+    }
 
-  return res.status(200).json({
-    success: true,
-    user,
-  });
+    return res.status(200).json({
+      success: true,
+      user: {
+        address: data.address,
+        username: data.username,
+        email: data.email,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+      },
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    return res.status(500).json({ error: 'Failed to update user', message: error.message });
+  }
 }
 
 // 사용자 삭제
@@ -143,14 +191,25 @@ async function deleteUser(req, res) {
     return res.status(400).json({ error: 'Missing address' });
   }
 
-  if (!users.has(address)) {
-    return res.status(404).json({ error: 'User not found' });
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .delete()
+      .eq('address', address)
+      .select();
+
+    if (error) {
+      console.error('Supabase delete error:', error);
+      return res.status(500).json({ error: 'Failed to delete user', message: error.message });
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    return res.status(500).json({ error: 'Failed to delete user', message: error.message });
   }
-
-  users.delete(address);
-
-  // TODO: 실제 DB에서 삭제
-  // await db.users.delete({ where: { address } });
-
-  return res.status(200).json({ success: true });
 }

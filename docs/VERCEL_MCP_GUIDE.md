@@ -1,21 +1,27 @@
-# Vercel MCP 연동 가이드
+# Vercel 백엔드 연동 가이드
 
-## 📖 Vercel MCP란?
+## 📖 Vercel이란?
 
-**Vercel MCP (Model Context Protocol)**는 AI 모델이 Vercel 플랫폼과 상호작용할 수 있도록 하는 프로토콜입니다. 이를 통해 배포, 환경 변수 관리, 로그 확인 등의 작업을 자동화할 수 있습니다.
+**Vercel**은 프론트엔드 프레임워크와 정적 사이트를 위한 클라우드 플랫폼입니다. Serverless Functions를 통해 백엔드 API도 쉽게 구축할 수 있습니다.
 
-## 🔧 MCP 설정 방법
+## ✅ 현재 프로젝트 상태
 
-### 1. Context 7 MCP 설치
+- ✅ Vercel CLI 설치됨 (v48.2.9)
+- ✅ Vercel 프로젝트 연결됨 (kimbyeong-9s-projects/key-mint)
+- ✅ GitHub 저장소 연결됨
+- ✅ vercel.json 설정 완료
+- ✅ API Functions 구현됨 (auth, user, upload)
 
-Context 7은 최신 버전의 개발 도구들과 통합하여 작업할 수 있게 해주는 툴입니다.
+## 🔧 초기 설정 (이미 완료됨)
+
+### 1. Vercel CLI 설치
 
 ```bash
 # npm을 사용하는 경우
-npm install -g context7-mcp
+npm install -g vercel
 
 # 또는 yarn
-yarn global add context7-mcp
+yarn global add vercel
 ```
 
 ### 2. Vercel Token 생성
@@ -26,7 +32,7 @@ yarn global add context7-mcp
 4. 적절한 스코프 선택
 5. 생성된 토큰 복사
 
-### 3. 환경 변수 설정
+### 3. 환경 변��� 설정
 
 `.env.local` 파일에 Vercel 토큰 추가:
 
@@ -106,22 +112,31 @@ export default function handler(req, res) {
 }
 ```
 
-## 📚 Context 7 MCP 주요 기능
+## 📚 Vercel CLI 주요 기능
 
-### 1. 자동 배포
+### 1. 배포
 
-코드 변경 시 자동으로 Vercel에 배포:
+프로젝트를 Vercel에 배포:
 
 ```bash
-context7 deploy --auto
+# 프로덕션 배포
+vercel --prod
+
+# 프리뷰 배포 (테스트용)
+vercel
 ```
 
-### 2. 환경 변수 동기화
-
-로컬 `.env.local`을 Vercel에 자동 동기화:
+### 2. 환경 변수 관리
 
 ```bash
-context7 env sync
+# 환경 변수 추가
+vercel env add VARIABLE_NAME
+
+# 환경 변수 목록 확인
+vercel env ls
+
+# 특정 환경 변수 가져오기
+vercel env pull .env.local
 ```
 
 ### 3. 로그 모니터링
@@ -129,15 +144,23 @@ context7 env sync
 실시간으로 Vercel 로그 확인:
 
 ```bash
-context7 logs --tail
+# 실시간 로그
+vercel logs --tail
+
+# 특정 배포 로그
+vercel logs <deployment-url>
 ```
 
-### 4. 빌드 최적화
+### 4. 로컬 개발 서버
 
-최신 버전의 빌드 도구 사용:
+로컬에서 Vercel 환경 테스트:
 
 ```bash
-context7 build --optimize
+# Vercel Dev 서버 시작
+vercel dev
+
+# 특정 포트에서 실행
+vercel dev --listen 3001
 ```
 
 ## 🔐 보안 모범 사례
@@ -281,20 +304,62 @@ vercel logs --tail
 vercel logs <deployment-url>
 ```
 
+## 🚀 다음 단계
+
+### 1. 환경 변수 설정
+
+Vercel 대시보드에서 프로덕션 환경 변수를 설정하세요:
+
+```bash
+# 또는 CLI로 추가
+vercel env add VITE_WALLETCONNECT_PROJECT_ID production
+vercel env add GOOGLE_CLIENT_ID production
+vercel env add GOOGLE_CLIENT_SECRET production
+vercel env add WEB3_STORAGE_TOKEN production
+```
+
+### 2. 프로덕션 배포
+
+```bash
+# 프로덕션 배포
+vercel --prod
+
+# 배포 상태 확인
+vercel ls
+```
+
+### 3. API 엔드포인트 테스트
+
+배포 후 다음 엔드포인트들이 사용 가능합니다:
+
+- `https://your-domain.vercel.app/api/auth/google` - Google OAuth
+- `https://your-domain.vercel.app/api/user` - 사용자 관리
+- `https://your-domain.vercel.app/api/upload` - IPFS 업로드
+
 ## 🎓 추가 리소스
 
 - [Vercel 공식 문서](https://vercel.com/docs)
 - [Vercel Serverless Functions](https://vercel.com/docs/functions)
-- [Context 7 문서](https://context7.dev/docs)
-- [MCP 프로토콜](https://modelcontextprotocol.io/)
+- [Vercel CLI 문서](https://vercel.com/docs/cli)
+- [환경 변수 관리](https://vercel.com/docs/projects/environment-variables)
 
-## 💡 팁
+## 💡 개발 팁
 
 1. **로컬 개발**: `vercel dev`로 로컬에서 Serverless Functions 테스트
-2. **환경 분리**: 개발/스테이징/프로덕션 환경 분리
+2. **환경 분리**: 개발/프리뷰/프로덕션 환경 각각 다른 환경 변수 설정
 3. **캐싱 활용**: `vercel.json`에서 캐시 설정으로 성능 향상
-4. **Edge Functions**: 빠른 응답이 필요한 경우 Edge Functions 사용
+4. **Edge Functions**: 지연 시간이 중요한 API는 Edge Functions 사용
+5. **자동 배포**: GitHub와 연동하여 push 시 자동 배포
+
+## ⚠️ 주의사항
+
+1. **API 제한**: 무료 플랜은 함수 실행 시간이 10초로 제한됨
+2. **의존성 크기**: Serverless Function은 50MB 제한이 있음
+3. **Cold Start**: 첫 호출 시 지연이 있을 수 있음
+4. **환경 변수**: 프로덕션 환경 변수는 배포 후에만 적용됨
 
 ---
 
-Vercel MCP 연동이 완료되면 더 효율적인 개발과 배포가 가능합니다!
+**프로젝트 대시보드**: https://vercel.com/kimbyeong-9s-projects/key-mint
+
+Vercel 연동이 완료되었습니다! 이제 백엔드 API를 Vercel에서 관리할 수 있습니다.

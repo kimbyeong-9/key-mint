@@ -1,5 +1,8 @@
 import Layout from "./components/Layout";
 import AppRoutes from "./Route";
+import { UserProvider } from "./contexts/UserContext";
+import ErrorBoundary from "./components/ErrorBoundary";
+import "./lib/supabaseMCP"; // MCP 초기화
 
 /**
  * 메인 애플리케이션 컴포넌트
@@ -7,9 +10,13 @@ import AppRoutes from "./Route";
  */
 function App() {
   return (
-    <Layout>
-      <AppRoutes />
-    </Layout>
+    <ErrorBoundary>
+      <UserProvider>
+        <Layout>
+          <AppRoutes />
+        </Layout>
+      </UserProvider>
+    </ErrorBoundary>
   );
 }
 

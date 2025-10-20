@@ -2,16 +2,26 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAccount } from 'wagmi';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Modal from '../components/Modal';
 import { useMint, useApprove } from '../hooks/useNFT';
 import { useList } from '../hooks/useMarket';
 import { uploadToIPFS } from '../lib/ipfs';
 import { parseEther } from '../lib/format';
+import { useUser } from '../contexts/UserContext';
 
 const Container = styled.div`
   max-width: 800px;
   margin: 0 auto;
-  padding: ${({ theme }) => theme.spacing(4)} 0;
+  padding: ${({ theme }) => theme.spacing(4)} ${({ theme }) => theme.spacing(3)};
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
+    padding: ${({ theme }) => theme.spacing(3)} ${({ theme }) => theme.spacing(2)};
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    padding: ${({ theme }) => theme.spacing(2)};
+  }
 `;
 
 const Title = styled.h1`
@@ -199,6 +209,10 @@ const ProgressSteps = styled.div`
   flex-direction: column;
   gap: ${({ theme }) => theme.spacing(2)};
   margin-top: ${({ theme }) => theme.spacing(2)};
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    gap: ${({ theme }) => theme.spacing(1.5)};
+  }
 `;
 
 const Step = styled.div`
@@ -216,11 +230,21 @@ const Step = styled.div`
     font-size: ${({ theme }) => theme.font.size.sm};
     color: ${({ theme }) => theme.colors.text};
   }
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    padding: ${({ theme }) => theme.spacing(1)};
+    gap: ${({ theme }) => theme.spacing(1.5)};
+
+    span {
+      font-size: ${({ theme }) => theme.font.size.xs};
+    }
+  }
 `;
 
 function Create() {
   const navigate = useNavigate();
   const { address, isConnected } = useAccount();
+  const { user } = useUser();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -320,6 +344,38 @@ function Create() {
   };
 
   const isPending = isMinting || isApproving || isListing;
+
+  // 지갑 연결 및 로그인 확인
+  if (!user) {
+    return (
+      <Container>
+        <Title>NFT 등록</Title>
+        <Subtitle>NFT를 등록하려면 먼저 로그인해주세요</Subtitle>
+        <div style={{ textAlign: 'center', margin: '40px 0' }}>
+          <a href="/login" style={{ 
+            color: '#00539C', 
+            textDecoration: 'none',
+            fontSize: '18px',
+            fontWeight: '600'
+          }}>
+            로그인하러 가기
+          </a>
+        </div>
+      </Container>
+    );
+  }
+
+  if (!isConnected) {
+    return (
+      <Container>
+        <Title>NFT 등록</Title>
+        <Subtitle>NFT를 등록하려면 지갑을 연결해주세요</Subtitle>
+        <div style={{ textAlign: 'center', margin: '40px 0' }}>
+          <ConnectButton />
+        </div>
+      </Container>
+    );
+  }
 
   return (
     <Container>

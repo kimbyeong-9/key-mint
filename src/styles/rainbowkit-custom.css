@@ -1,0 +1,40 @@
+/* RainbowKit ConnectButton 커스텀 스타일 - 지갑 주소 숨기기 */
+
+/* 지갑 연결된 상태에서 주소 텍스트 숨기기 */
+[data-rk] button[data-testid="rk-account-button"] {
+  /* 주소 텍스트 숨기기 - 첫 번째 span(아바타)을 제외한 모든 span 숨기기 */
+  span:not(:first-child) {
+    display: none !important;
+  }
+  
+  /* 아바타와 드롭다운 화살표만 표시 */
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 12px !important;
+  min-width: auto !important;
+}
+
+/* 아바타는 유지 */
+[data-rk] button[data-testid="rk-account-button"] div[data-testid="rk-account-button-avatar"] {
+  display: block !important;
+  margin-right: 0 !important;
+}
+
+/* 드롭다운 화살표는 유지 */
+[data-rk] button[data-testid="rk-account-button"] svg {
+  display: block !important;
+}
+
+/* 연결되지 않은 상태의 버튼은 그대로 유지 */
+[data-rk] button:not([data-testid="rk-account-button"]) {
+  /* 연결 버튼 스타일 유지 */
+}
+
+/* 모바일에서도 동일하게 적용 */
+@media (max-width: 768px) {
+  [data-rk] button[data-testid="rk-account-button"] {
+    padding: 6px 10px !important;
+    gap: 6px !important;
+  }
+}

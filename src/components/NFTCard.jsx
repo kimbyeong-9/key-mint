@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAccount } from 'wagmi';
 import styled from 'styled-components';
 import BadgeNFT from './BadgeNFT';
+import WalletConnectModal from './WalletConnectModal';
 import { formatEther, shortenAddress } from '../lib/format';
 import { ipfsToHttp } from '../lib/ipfs';
 
@@ -99,42 +102,55 @@ const Owner = styled.div`
 
 function NFTCard({ nft }) {
   const navigate = useNavigate();
+  const { isConnected } = useAccount();
+  const [showWalletModal, setShowWalletModal] = useState(false);
 
   const handleClick = () => {
-    navigate(`/item/${nft.listingId || nft.tokenId}`);
+    if (isConnected) {
+      navigate(`/item/${nft.listingId || nft.tokenId}`);
+    } else {
+      setShowWalletModal(true);
+    }
   };
 
   const imageUrl = nft.image ? ipfsToHttp(nft.image) : '/placeholder-nft.png';
 
   return (
-    <Card onClick={handleClick}>
-      <ImageContainer>
-        <Image src={imageUrl} alt={nft.name} loading="lazy" />
-        <BadgeContainer>
-          <BadgeNFT />
-        </BadgeContainer>
-      </ImageContainer>
+    <>
+      <Card onClick={handleClick}>
+        <ImageContainer>
+          <Image src={imageUrl} alt={nft.name} loading="lazy" />
+          <BadgeContainer>
+            <BadgeNFT />
+          </BadgeContainer>
+        </ImageContainer>
 
-      <Content>
-        <Title>{nft.name || 'Untitled NFT'}</Title>
-        <Description>{nft.description || 'No description available'}</Description>
+        <Content>
+          <Title>{nft.name || 'Untitled NFT'}</Title>
+          <Description>{nft.description || 'No description available'}</Description>
 
-        <Footer>
-          <Price>
-            <PriceLabel>가격</PriceLabel>
-            <PriceValue>
-              {nft.price ? `${formatEther(nft.price)} ETH` : 'N/A'}
-            </PriceValue>
-          </Price>
+          <Footer>
+            <Price>
+              <PriceLabel>가격</PriceLabel>
+              <PriceValue>
+                {nft.price ? `${formatEther(nft.price)} ETH` : 'N/A'}
+              </PriceValue>
+            </Price>
 
-          {nft.seller && (
-            <Owner>
-              판매자: {shortenAddress(nft.seller)}
-            </Owner>
-          )}
-        </Footer>
-      </Content>
-    </Card>
+            {nft.seller && (
+              <Owner>
+                판매자: {shortenAddress(nft.seller)}
+              </Owner>
+            )}
+          </Footer>
+        </Content>
+      </Card>
+
+      <WalletConnectModal 
+        isOpen={showWalletModal} 
+        onClose={() => setShowWalletModal(false)} 
+      />
+    </>
   );
 }
 

@@ -1,12 +1,24 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import { useAccount } from 'wagmi';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import NFTCard from '../components/NFTCard';
+import { useUser } from '../contexts/UserContext';
 import { useListingCounter } from '../hooks/useMarket';
 
 const Container = styled.div`
   max-width: 1280px;
   margin: 0 auto;
-  padding: ${({ theme }) => theme.spacing(4)} 0;
+  padding: ${({ theme }) => theme.spacing(4)} ${({ theme }) => theme.spacing(3)};
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
+    padding: ${({ theme }) => theme.spacing(3)} ${({ theme }) => theme.spacing(2)};
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    padding: ${({ theme }) => theme.spacing(2)} ${({ theme }) => theme.spacing(2)};
+  }
 `;
 
 const Hero = styled.section`
@@ -20,6 +32,16 @@ const Hero = styled.section`
   );
   border-radius: ${({ theme }) => theme.radius.xl};
   border: 1px solid ${({ theme }) => theme.colors.border};
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
+    padding: ${({ theme }) => theme.spacing(4)} ${({ theme }) => theme.spacing(2)};
+    margin-bottom: ${({ theme }) => theme.spacing(4)};
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    padding: ${({ theme }) => theme.spacing(3)} ${({ theme }) => theme.spacing(2)};
+    margin-bottom: ${({ theme }) => theme.spacing(3)};
+  }
 `;
 
 const HeroTitle = styled.h1`
@@ -78,7 +100,14 @@ const SectionHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: ${({ theme }) => theme.spacing(3)};
+  margin-bottom: 0;
+  gap: ${({ theme }) => theme.spacing(2)};
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
 `;
 
 const SectionTitle = styled.h2`
@@ -90,27 +119,90 @@ const SectionTitle = styled.h2`
 const FilterButtons = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing(1)};
+  flex-wrap: wrap;
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    display: none;
+  }
 `;
 
-const FilterButton = styled.button`
+const SortSection = styled.div`
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-top: ${({ theme }) => theme.spacing(2)};
+  margin-bottom: ${({ theme }) => theme.spacing(3)};
+  gap: ${({ theme }) => theme.spacing(2)};
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    margin-top: ${({ theme }) => theme.spacing(1.5)};
+    margin-bottom: ${({ theme }) => theme.spacing(2)};
+  }
+`;
+
+
+const SortButton = styled.button`
   padding: ${({ theme }) => theme.spacing(1)} ${({ theme }) => theme.spacing(2)};
   background: ${({ $active, theme }) =>
-    $active ? theme.colors.primary : theme.colors.bgLight};
+    $active ? theme.colors.primary : theme.colors.card};
   color: ${({ $active, theme }) =>
     $active ? theme.colors.text : theme.colors.textSub};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  border-radius: ${({ theme }) => theme.radius.md};
+  border: 1px solid ${({ $active, theme }) =>
+    $active ? theme.colors.primary : theme.colors.border};
+  border-radius: ${({ theme }) => theme.radius.sm};
   font-size: ${({ theme }) => theme.font.size.sm};
   font-weight: ${({ theme }) => theme.font.weight.medium};
   cursor: pointer;
   transition: ${({ theme }) => theme.transition.fast};
+  white-space: nowrap;
 
   &:hover {
     background: ${({ $active, theme }) =>
-      $active ? theme.colors.hover : theme.colors.card};
+      $active ? theme.colors.hover : theme.colors.bgLight};
     border-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.text};
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    padding: ${({ theme }) => theme.spacing(0.75)} ${({ theme }) => theme.spacing(1.5)};
+    font-size: ${({ theme }) => theme.font.size.xs};
   }
 `;
+
+const MobileCreateButton = styled.button`
+  display: none;
+  padding: ${({ theme }) => theme.spacing(1)} ${({ theme }) => theme.spacing(2)};
+  background: ${({ theme }) => theme.colors.primary};
+  color: ${({ theme }) => theme.colors.text};
+  border: none;
+  border-radius: ${({ theme }) => theme.radius.md};
+  font-weight: ${({ theme }) => theme.font.weight.semibold};
+  font-size: ${({ theme }) => theme.font.size.sm};
+  cursor: pointer;
+  transition: ${({ theme }) => theme.transition.normal};
+  white-space: nowrap;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.hover};
+    transform: translateY(-1px);
+    box-shadow: ${({ theme }) => theme.shadow.primary};
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    display: block;
+  }
+`;
+
 
 const Grid = styled.div`
   display: grid;
@@ -141,6 +233,7 @@ const EmptyState = styled.div`
   }
 `;
 
+
 const LoadingSpinner = styled.div`
   display: flex;
   justify-content: center;
@@ -165,10 +258,17 @@ const LoadingSpinner = styled.div`
 `;
 
 function Home() {
+  const navigate = useNavigate();
+  const { isConnected } = useAccount();
+  const { user } = useUser();
   const [nfts, setNfts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, recent, popular
   const { listingCounter } = useListingCounter();
+
+  const handleCreateClick = () => {
+    navigate('/create');
+  };
 
   // NFT 목록 로드
   useEffect(() => {
@@ -181,14 +281,14 @@ function Home() {
         // const data = await response.json();
         // setNfts(data);
 
-        // 임시 더미 데이터
+        // 임시 더미 데이터 - 로컬 placeholder 이미지 사용
         const dummyNFTs = [
           {
             listingId: 1,
             tokenId: 1,
             name: 'Crypto Art #001',
             description: '독특한 디지털 아트워크',
-            image: 'https://via.placeholder.com/400',
+            image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%234a5568" width="400" height="400"/%3E%3Ctext fill="%23a0aec0" font-family="system-ui, sans-serif" font-size="20" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3ECrypto Art %23001%3C/text%3E%3C/svg%3E',
             price: '1000000000000000000', // 1 ETH in Wei
             seller: '0x1234567890123456789012345678901234567890',
           },
@@ -197,7 +297,7 @@ function Home() {
             tokenId: 2,
             name: 'Digital Masterpiece',
             description: '프리미엄 NFT 컬렉션',
-            image: 'https://via.placeholder.com/400',
+            image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%235a67d8" width="400" height="400"/%3E%3Ctext fill="%23cbd5e0" font-family="system-ui, sans-serif" font-size="20" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EDigital Masterpiece%3C/text%3E%3C/svg%3E',
             price: '2000000000000000000', // 2 ETH
             seller: '0x2345678901234567890123456789012345678901',
           },
@@ -206,7 +306,7 @@ function Home() {
             tokenId: 3,
             name: 'Abstract Dreams',
             description: '추상적인 꿈의 세계',
-            image: 'https://via.placeholder.com/400',
+            image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%2348bb78" width="400" height="400"/%3E%3Ctext fill="%23c6f6d5" font-family="system-ui, sans-serif" font-size="20" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EAbstract Dreams%3C/text%3E%3C/svg%3E',
             price: '500000000000000000', // 0.5 ETH
             seller: '0x3456789012345678901234567890123456789012',
           },
@@ -253,30 +353,38 @@ function Home() {
         </Stats>
       </Hero>
 
+
       <Section>
         <SectionHeader>
           <SectionTitle>NFT 컬렉션</SectionTitle>
-          <FilterButtons>
-            <FilterButton
-              $active={filter === 'all'}
-              onClick={() => setFilter('all')}
-            >
-              전체
-            </FilterButton>
-            <FilterButton
-              $active={filter === 'recent'}
-              onClick={() => setFilter('recent')}
-            >
-              최신
-            </FilterButton>
-            <FilterButton
-              $active={filter === 'popular'}
-              onClick={() => setFilter('popular')}
-            >
-              인기
-            </FilterButton>
-          </FilterButtons>
+          {user && (
+            <MobileCreateButton onClick={handleCreateClick}>
+              NFT 등록
+            </MobileCreateButton>
+          )}
         </SectionHeader>
+
+        {/* 정렬 방식 선택 섹션 */}
+        <SortSection>
+          <SortButton
+            $active={filter === 'all'}
+            onClick={() => setFilter('all')}
+          >
+            전체
+          </SortButton>
+          <SortButton
+            $active={filter === 'recent'}
+            onClick={() => setFilter('recent')}
+          >
+            최신순
+          </SortButton>
+          <SortButton
+            $active={filter === 'popular'}
+            onClick={() => setFilter('popular')}
+          >
+            인기순
+          </SortButton>
+        </SortSection>
 
         {loading ? (
           <LoadingSpinner />

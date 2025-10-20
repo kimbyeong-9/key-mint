@@ -13,6 +13,8 @@ import theme from './styles/theme.js';
 
 // RainbowKit 스타일
 import '@rainbow-me/rainbowkit/styles.css';
+// RainbowKit 커스텀 스타일 (지갑 주소 숨기기)
+import './styles/rainbowkit-custom.css';
 
 // React Query 클라이언트
 const queryClient = new QueryClient({

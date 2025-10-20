@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    open: true
+    open: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    // 크롬을 기본 브라우저로 설정
+    host: true
   }
 })

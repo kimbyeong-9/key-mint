@@ -71,3 +71,6 @@ export function useProfile(address) {
 
   return { profile, isLoading, error };
 }
+
+// 향상된 기능은 추후 구현 예정
+// UserRegistryEnhanced 컨트랙트 배포 후 사용 가능
