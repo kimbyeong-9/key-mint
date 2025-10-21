@@ -431,7 +431,10 @@ export async function saveImageMetadata(imageData) {
         p_width: imageData.width || null,
         p_height: imageData.height || null,
         p_exif_data: imageData.exifData || null,
-        p_thumbnail_path: imageData.thumbnailPath || null
+        p_thumbnail_path: imageData.thumbnailPath || null,
+        p_original_size: imageData.originalSize || null,
+        p_optimized_size: imageData.optimizedSize || null,
+        p_compression_ratio: imageData.compressionRatio || null
       });
 
     if (error) {
@@ -475,6 +478,91 @@ export async function uploadNFTImage(file, metadata = {}) {
 
   } catch (error) {
     console.error('❌ NFT 이미지 업로드 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 최적화된 이미지 업로드 (이미지 처리 포함)
+ */
+export async function uploadOptimizedNFTImage(file, options = {}) {
+  try {
+    // 이미지 최적화 함수 import (동적 import로 순환 참조 방지)
+    const { optimizeImage, validateImageFile } = await import('./imageUtils.js');
+
+    // 현재 사용자 정보 가져오기
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('로그인이 필요합니다.');
+    }
+
+    // 1. 파일 유효성 검사
+    const validation = validateImageFile(file);
+    if (!validation.isValid) {
+      throw new Error(validation.errors.join(', '));
+    }
+
+    // 2. 이미지 최적화
+    console.log('🖼️ 이미지 최적화 시작...');
+    const optimizationResult = await optimizeImage(file, options);
+    
+    // 3. 최적화된 이미지 업로드
+    console.log('📤 최적화된 이미지 업로드...');
+    const uploadResult = await uploadImageToStorage(optimizationResult.optimizedFile, user.id);
+
+    // 4. 썸네일 업로드
+    let thumbnailResult = null;
+    if (optimizationResult.thumbnailFile) {
+      console.log('🖼️ 썸네일 업로드...');
+      const thumbnailFileName = `thumb_${uploadResult.fileName}`;
+      const { data: thumbnailData, error: thumbnailError } = await supabase.storage
+        .from('nft-images')
+        .upload(`${user.id}/thumb_${Date.now()}-${file.name}`, optimizationResult.thumbnailFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (!thumbnailError) {
+        const { data: thumbnailUrlData } = supabase.storage
+          .from('nft-images')
+          .getPublicUrl(thumbnailData.path);
+        
+        thumbnailResult = {
+          path: thumbnailData.path,
+          url: thumbnailUrlData.publicUrl
+        };
+      }
+    }
+
+    // 5. 메타데이터와 함께 데이터베이스에 저장
+    const imageId = await saveImageMetadata({
+      ...uploadResult,
+      width: optimizationResult.dimensions.width,
+      height: optimizationResult.dimensions.height,
+      exifData: optimizationResult.exifData,
+      thumbnailPath: thumbnailResult?.path || null,
+      originalSize: optimizationResult.originalSize,
+      optimizedSize: optimizationResult.optimizedSize,
+      compressionRatio: optimizationResult.compressionRatio
+    });
+
+    console.log('✅ 최적화된 NFT 이미지 업로드 완료');
+
+    return {
+      id: imageId,
+      ...uploadResult,
+      thumbnailUrl: thumbnailResult?.url || null,
+      optimization: {
+        originalSize: optimizationResult.originalSize,
+        optimizedSize: optimizationResult.optimizedSize,
+        compressionRatio: optimizationResult.compressionRatio,
+        dimensions: optimizationResult.dimensions,
+        exifData: optimizationResult.exifData
+      }
+    };
+
+  } catch (error) {
+    console.error('❌ 최적화된 NFT 이미지 업로드 실패:', error);
     throw error;
   }
 }

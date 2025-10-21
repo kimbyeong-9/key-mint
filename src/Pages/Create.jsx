@@ -5,7 +5,7 @@ import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Modal from '../components/Modal';
 import { useUser } from '../contexts/UserContext';
-import { uploadNFTImage } from '../lib/supabase';
+import { uploadOptimizedNFTImage } from '../lib/supabase';
 
 const Container = styled.div`
   max-width: 800px;
@@ -270,32 +270,34 @@ function Create() {
     }
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      // 파일 검증
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-      
-      if (file.size > maxSize) {
-        setErrors(prev => ({ ...prev, file: '파일 크기는 10MB를 초과할 수 없습니다.' }));
-        return;
-      }
-      
-      if (!allowedTypes.includes(file.type)) {
-        setErrors(prev => ({ ...prev, file: '지원되는 이미지 형식이 아닙니다. (JPG, PNG, GIF, WebP)' }));
-        return;
-      }
+      try {
+        // 이미지 유틸리티 함수 import
+        const { validateImageFile } = await import('../lib/imageUtils.js');
+        
+        // 파일 검증
+        const validation = validateImageFile(file);
+        if (!validation.isValid) {
+          setErrors(prev => ({ ...prev, file: validation.errors.join(', ') }));
+          return;
+        }
 
-      setFormData((prev) => ({ ...prev, file }));
-      setErrors(prev => ({ ...prev, file: '' }));
+        setFormData((prev) => ({ ...prev, file }));
+        setErrors(prev => ({ ...prev, file: '' }));
 
-      // 이미지 미리보기
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+        // 이미지 미리보기
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreview(reader.result);
+        };
+        reader.readAsDataURL(file);
+
+      } catch (error) {
+        console.error('파일 검증 실패:', error);
+        setErrors(prev => ({ ...prev, file: '파일 검증 중 오류가 발생했습니다.' }));
+      }
     }
   };
 
@@ -334,14 +336,17 @@ function Create() {
     try {
       console.log('🚀 NFT 등록 시작:', formData);
 
-      // 1. 이미지를 Supabase Storage에 업로드
-      const imageResult = await uploadNFTImage(formData.file, {
-        width: null, // 나중에 이미지 처리에서 추가
-        height: null,
-        exifData: null // 나중에 EXIF 추출에서 추가
+      // 1. 최적화된 이미지를 Supabase Storage에 업로드
+      const imageResult = await uploadOptimizedNFTImage(formData.file, {
+        maxWidth: 2048,
+        maxHeight: 2048,
+        quality: 0.8,
+        thumbnailSize: 300,
+        thumbnailQuality: 0.7,
+        extractEXIF: true
       });
 
-      console.log('✅ 이미지 업로드 완료:', imageResult);
+      console.log('✅ 최적화된 이미지 업로드 완료:', imageResult);
 
       // 2. NFT 데이터를 로컬 스토리지에 저장 (임시)
       const nftData = {
@@ -349,12 +354,14 @@ function Create() {
         name: formData.name,
         description: formData.description,
         price: formData.price,
-        image: imageResult.url, // Supabase Storage URL 사용
+        image: imageResult.url, // 최적화된 이미지 URL
+        thumbnailUrl: imageResult.thumbnailUrl, // 썸네일 URL
         imagePath: imageResult.path,
         creator: user.username,
         creatorId: user.id,
         createdAt: new Date().toISOString(),
-        status: 'draft' // 임시 저장 상태
+        status: 'draft', // 임시 저장 상태
+        optimization: imageResult.optimization // 최적화 정보
       };
 
       // 로컬 스토리지에 저장
@@ -364,7 +371,12 @@ function Create() {
 
       console.log('✅ NFT 데이터 저장 완료');
 
-      alert('NFT가 성공적으로 등록되었습니다! (이미지는 Supabase Storage에 저장됨)');
+      // 성공 메시지에 최적화 정보 포함
+      const compressionInfo = imageResult.optimization 
+        ? ` (압축률: ${imageResult.optimization.compressionRatio}%)`
+        : '';
+      
+      alert(`NFT가 성공적으로 등록되었습니다!${compressionInfo}`);
       handleCloseModal();
       navigate('/');
 
