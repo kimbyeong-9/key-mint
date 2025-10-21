@@ -360,3 +360,121 @@ export async function checkEmailAvailable(email) {
     };
   }
 }
+
+/**
+ * 이미지 파일을 Supabase Storage에 업로드
+ */
+export async function uploadImageToStorage(file, userId) {
+  if (!supabase) {
+    throw new Error('Supabase 클라이언트가 초기화되지 않았습니다.');
+  }
+
+  try {
+    // 파일명 생성 (사용자ID/타임스탬프-원본파일명)
+    const timestamp = Date.now();
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `${userId}/${timestamp}-${file.name}`;
+
+    console.log('📤 이미지 업로드 시작:', fileName);
+
+    // Supabase Storage에 파일 업로드
+    const { data, error } = await supabase.storage
+      .from('nft-images')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) {
+      console.error('❌ Storage 업로드 실패:', error);
+      throw new Error(`이미지 업로드 실패: ${error.message}`);
+    }
+
+    console.log('✅ Storage 업로드 성공:', data.path);
+
+    // 공개 URL 생성
+    const { data: urlData } = supabase.storage
+      .from('nft-images')
+      .getPublicUrl(data.path);
+
+    return {
+      path: data.path,
+      url: urlData.publicUrl,
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type
+    };
+
+  } catch (error) {
+    console.error('❌ 이미지 업로드 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 이미지 메타데이터를 데이터베이스에 저장
+ */
+export async function saveImageMetadata(imageData) {
+  if (!supabase) {
+    throw new Error('Supabase 클라이언트가 초기화되지 않았습니다.');
+  }
+
+  try {
+    console.log('💾 이미지 메타데이터 저장 시작:', imageData);
+
+    const { data, error } = await supabase
+      .rpc('upload_nft_image', {
+        p_file_name: imageData.fileName,
+        p_file_path: imageData.path,
+        p_file_size: imageData.fileSize,
+        p_mime_type: imageData.mimeType,
+        p_width: imageData.width || null,
+        p_height: imageData.height || null,
+        p_exif_data: imageData.exifData || null,
+        p_thumbnail_path: imageData.thumbnailPath || null
+      });
+
+    if (error) {
+      console.error('❌ 메타데이터 저장 실패:', error);
+      throw new Error(`메타데이터 저장 실패: ${error.message}`);
+    }
+
+    console.log('✅ 메타데이터 저장 성공:', data);
+    return data;
+
+  } catch (error) {
+    console.error('❌ 메타데이터 저장 실패:', error);
+    throw error;
+  }
+}
+
+/**
+ * 이미지 업로드 및 메타데이터 저장 (통합 함수)
+ */
+export async function uploadNFTImage(file, metadata = {}) {
+  try {
+    // 현재 사용자 정보 가져오기
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('로그인이 필요합니다.');
+    }
+
+    // 1. Storage에 이미지 업로드
+    const uploadResult = await uploadImageToStorage(file, user.id);
+
+    // 2. 메타데이터와 함께 데이터베이스에 저장
+    const imageId = await saveImageMetadata({
+      ...uploadResult,
+      ...metadata
+    });
+
+    return {
+      id: imageId,
+      ...uploadResult
+    };
+
+  } catch (error) {
+    console.error('❌ NFT 이미지 업로드 실패:', error);
+    throw error;
+  }
+}

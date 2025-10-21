@@ -4,11 +4,8 @@ import styled from 'styled-components';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Modal from '../components/Modal';
-import { useMint, useApprove } from '../hooks/useNFT';
-import { useList } from '../hooks/useMarket';
-import { uploadToIPFS } from '../lib/ipfs';
-import { parseEther } from '../lib/format';
 import { useUser } from '../contexts/UserContext';
+import { uploadNFTImage } from '../lib/supabase';
 
 const Container = styled.div`
   max-width: 800px;
@@ -215,30 +212,20 @@ const ProgressSteps = styled.div`
   }
 `;
 
-const Step = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing(2)};
-  padding: ${({ theme }) => theme.spacing(1.5)};
-  background: ${({ $completed, theme }) =>
-    $completed ? `${theme.colors.success}20` : theme.colors.bgLight};
-  border: 1px solid ${({ $active, $completed, theme }) =>
-    $active ? theme.colors.primary : $completed ? theme.colors.success : theme.colors.border};
-  border-radius: ${({ theme }) => theme.radius.md};
+const ErrorMessage = styled.div`
+  color: ${({ theme }) => theme.colors.error};
+  font-size: ${({ theme }) => theme.font.size.sm};
+  margin-top: ${({ theme }) => theme.spacing(0.5)};
+`;
 
-  span {
-    font-size: ${({ theme }) => theme.font.size.sm};
-    color: ${({ theme }) => theme.colors.text};
-  }
-
-  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
-    padding: ${({ theme }) => theme.spacing(1)};
-    gap: ${({ theme }) => theme.spacing(1.5)};
-
-    span {
-      font-size: ${({ theme }) => theme.font.size.xs};
-    }
-  }
+const SuccessMessage = styled.div`
+  color: ${({ theme }) => theme.colors.success};
+  font-size: ${({ theme }) => theme.font.size.sm};
+  margin-top: ${({ theme }) => theme.spacing(0.5)};
+  padding: ${({ theme }) => theme.spacing(1)};
+  background: ${({ theme }) => `${theme.colors.success}15`};
+  border: 1px solid ${({ theme }) => theme.colors.success};
+  border-radius: ${({ theme }) => theme.radius.sm};
 `;
 
 function Create() {
@@ -255,11 +242,8 @@ function Create() {
   });
 
   const [preview, setPreview] = useState('');
-  const [currentStep, setCurrentStep] = useState(0);
-
-  const { mint, isPending: isMinting, isSuccess: mintSuccess } = useMint();
-  const { approve, isPending: isApproving, isSuccess: approveSuccess } = useApprove();
-  const { list, isPending: isListing, isSuccess: listSuccess } = useList();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const handleOpenModal = () => {
     if (!isConnected) {
@@ -273,18 +257,38 @@ function Create() {
     setIsModalOpen(false);
     setFormData({ name: '', description: '', price: '', file: null });
     setPreview('');
-    setCurrentStep(0);
+    setErrors({});
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    // 에러 초기화
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // 파일 검증
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      
+      if (file.size > maxSize) {
+        setErrors(prev => ({ ...prev, file: '파일 크기는 10MB를 초과할 수 없습니다.' }));
+        return;
+      }
+      
+      if (!allowedTypes.includes(file.type)) {
+        setErrors(prev => ({ ...prev, file: '지원되는 이미지 형식이 아닙니다. (JPG, PNG, GIF, WebP)' }));
+        return;
+      }
+
       setFormData((prev) => ({ ...prev, file }));
+      setErrors(prev => ({ ...prev, file: '' }));
 
       // 이미지 미리보기
       const reader = new FileReader();
@@ -295,55 +299,82 @@ function Create() {
     }
   };
 
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.name.trim()) {
+      newErrors.name = 'NFT 이름을 입력해주세요.';
+    }
+    
+    if (!formData.description.trim()) {
+      newErrors.description = '설명을 입력해주세요.';
+    }
+    
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      newErrors.price = '올바른 가격을 입력해주세요.';
+    }
+    
+    if (!formData.file) {
+      newErrors.file = '이미지를 선택해주세요.';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.file) {
-      alert('이미지를 선택해주세요.');
+    if (!validateForm()) {
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
-      // Step 1: IPFS 업로드
-      setCurrentStep(1);
-      const tokenURI = await uploadToIPFS(formData.file, {
+      console.log('🚀 NFT 등록 시작:', formData);
+
+      // 1. 이미지를 Supabase Storage에 업로드
+      const imageResult = await uploadNFTImage(formData.file, {
+        width: null, // 나중에 이미지 처리에서 추가
+        height: null,
+        exifData: null // 나중에 EXIF 추출에서 추가
+      });
+
+      console.log('✅ 이미지 업로드 완료:', imageResult);
+
+      // 2. NFT 데이터를 로컬 스토리지에 저장 (임시)
+      const nftData = {
+        id: imageResult.id,
         name: formData.name,
         description: formData.description,
         price: formData.price,
-      });
+        image: imageResult.url, // Supabase Storage URL 사용
+        imagePath: imageResult.path,
+        creator: user.username,
+        creatorId: user.id,
+        createdAt: new Date().toISOString(),
+        status: 'draft' // 임시 저장 상태
+      };
 
-      // Step 2: NFT 민팅
-      setCurrentStep(2);
-      await mint(address, tokenURI);
+      // 로컬 스토리지에 저장
+      const existingNFTs = JSON.parse(localStorage.getItem('draftNFTs') || '[]');
+      existingNFTs.push(nftData);
+      localStorage.setItem('draftNFTs', JSON.stringify(existingNFTs));
 
-      // 민팅 완료 후 토큰 ID 확인 필요 (이벤트 리스닝 또는 트랜잭션 receipt에서)
-      // 여기서는 임시로 하드코딩 (실제로는 민팅 이벤트에서 가져와야 함)
-      const tokenId = 1; // TODO: 실제 토큰 ID 가져오기
+      console.log('✅ NFT 데이터 저장 완료');
 
-      // Step 3: Approve
-      setCurrentStep(3);
-      await approve(tokenId);
-
-      // Step 4: 마켓플레이스에 등록
-      setCurrentStep(4);
-      const priceWei = parseEther(formData.price);
-      await list(tokenId, formData.price);
-
-      // 완료
-      setCurrentStep(5);
-      alert('NFT가 성공적으로 등록되었습니다!');
-      setTimeout(() => {
-        handleCloseModal();
-        navigate('/');
-      }, 2000);
+      alert('NFT가 성공적으로 등록되었습니다! (이미지는 Supabase Storage에 저장됨)');
+      handleCloseModal();
+      navigate('/');
 
     } catch (error) {
-      console.error('NFT 등록 실패:', error);
+      console.error('❌ NFT 등록 실패:', error);
       alert('NFT 등록에 실패했습니다: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
-
-  const isPending = isMinting || isApproving || isListing;
 
   // 지갑 연결 및 로그인 확인
   if (!user) {
@@ -431,10 +462,11 @@ function Create() {
                     />
                   </svg>
                   <p>클릭하여 이미지 선택</p>
-                  <span>PNG, JPG, GIF (최대 10MB)</span>
+                  <span>PNG, JPG, GIF, WebP (최대 10MB)</span>
                 </>
               )}
             </FileLabel>
+            {errors.file && <ErrorMessage>{errors.file}</ErrorMessage>}
           </InputGroup>
 
           <InputGroup>
@@ -448,6 +480,7 @@ function Create() {
               onChange={handleChange}
               required
             />
+            {errors.name && <ErrorMessage>{errors.name}</ErrorMessage>}
           </InputGroup>
 
           <InputGroup>
@@ -460,6 +493,7 @@ function Create() {
               onChange={handleChange}
               required
             />
+            {errors.description && <ErrorMessage>{errors.description}</ErrorMessage>}
           </InputGroup>
 
           <InputGroup>
@@ -475,31 +509,11 @@ function Create() {
               onChange={handleChange}
               required
             />
+            {errors.price && <ErrorMessage>{errors.price}</ErrorMessage>}
           </InputGroup>
 
-          {isPending && (
-            <ProgressSteps>
-              <Step $active={currentStep === 1} $completed={currentStep > 1}>
-                <span>{currentStep > 1 ? '✓' : '1'}</span>
-                <span>IPFS 업로드</span>
-              </Step>
-              <Step $active={currentStep === 2} $completed={currentStep > 2}>
-                <span>{currentStep > 2 ? '✓' : '2'}</span>
-                <span>NFT 민팅</span>
-              </Step>
-              <Step $active={currentStep === 3} $completed={currentStep > 3}>
-                <span>{currentStep > 3 ? '✓' : '3'}</span>
-                <span>판매 권한 승인</span>
-              </Step>
-              <Step $active={currentStep === 4} $completed={currentStep > 4}>
-                <span>{currentStep > 4 ? '✓' : '4'}</span>
-                <span>마켓플레이스 등록</span>
-              </Step>
-            </ProgressSteps>
-          )}
-
-          <Button type="submit" disabled={isPending || !formData.file}>
-            {isPending ? '처리 중...' : '등록하기'}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? '저장 중...' : 'NFT 등록하기'}
           </Button>
         </Form>
       </Modal>
