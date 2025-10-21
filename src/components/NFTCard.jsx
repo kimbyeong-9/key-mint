@@ -144,6 +144,7 @@ const Owner = styled.div`
   color: ${({ theme }) => theme.colors.textSub};
 `;
 
+
 function NFTCard({ nft }) {
   const navigate = useNavigate();
   const { isConnected } = useAccount();
@@ -156,6 +157,7 @@ function NFTCard({ nft }) {
       setShowWalletModal(true);
     }
   };
+
 
   // 이미지 URL 처리 - Supabase Storage URL 또는 IPFS URL
   const imageUrl = nft.image ? 
@@ -197,8 +199,8 @@ function NFTCard({ nft }) {
       </Card>
 
       <WalletConnectModal 
-        isOpen={showWalletModal} 
-        onClose={() => setShowWalletModal(false)} 
+        isOpen={showWalletModal}
+        onClose={() => setShowWalletModal(false)}
       />
     </>
   );

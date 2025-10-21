@@ -7,6 +7,8 @@ import Home from "../Pages/Home";
 import Detail from "../Pages/Detail";
 import Create from "../Pages/Create";
 import Checkout from "../Pages/Checkout";
+import PaymentSuccess from "../Pages/PaymentSuccess";
+import PaymentFail from "../Pages/PaymentFail";
 
 // 🔥 테스트용 간단한 회원가입/로그인
 import SignupSimple from "../Pages/Signup-simple";
@@ -36,6 +38,8 @@ function AppRoutes() {
 
       {/* 결제 페이지 */}
       <Route path="/checkout/:listingId" element={<Checkout />} />
+      <Route path="/payment/success" element={<PaymentSuccess />} />
+      <Route path="/payment/fail" element={<PaymentFail />} />
 
       {/* 404 페이지 - 홈으로 리다이렉트 */}
       <Route path="*" element={<Navigate to="/" replace />} />

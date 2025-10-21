@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAccount } from 'wagmi';
 import BadgeNFT from '../components/BadgeNFT';
+import PaymentModal from '../components/PaymentModal';
 import { useNFTDetail } from '../hooks/useNFTDetail';
 import { formatEther, shortenAddress, formatDate } from '../lib/format';
 
@@ -274,6 +275,9 @@ function Detail() {
   
   // 이미지 확대 보기 상태
   const [showImageModal, setShowImageModal] = useState(false);
+  
+  // 결제 모달 상태
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   const handleBuy = () => {
     if (!isConnected) {
@@ -286,8 +290,19 @@ function Detail() {
       return;
     }
 
-    // TODO: 실제 구매 로직 구현
-    alert('구매 기능은 아직 구현되지 않았습니다.');
+    // 토스페이먼츠 결제 모달 열기
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentSuccess = (paymentData) => {
+    console.log('💳 결제 성공:', paymentData);
+    setShowPaymentModal(false);
+    
+    // 결제 성공 후 처리
+    alert(`결제가 성공적으로 완료되었습니다!\n주문번호: ${paymentData.orderId}\n금액: ${paymentData.amount?.toLocaleString()}원`);
+    
+    // 페이지 새로고침으로 최신 데이터 반영
+    refetch();
   };
 
   const handleBack = () => {
@@ -440,6 +455,14 @@ function Detail() {
           />
         </ImageModal>
       )}
+
+      {/* 토스페이먼츠 결제 모달 */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        nft={nft}
+        onSuccess={handlePaymentSuccess}
+      />
     </Container>
   );
 }
