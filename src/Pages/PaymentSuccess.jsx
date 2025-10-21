@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { handlePaymentSuccess } from '../lib/tossPayments';
+import { useETHBalance } from '../hooks/useETHBalance';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -136,6 +137,7 @@ const LoadingSpinner = styled.div`
 function PaymentSuccess() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { fetchBalance } = useETHBalance();
   const [isProcessing, setIsProcessing] = useState(true);
   const [paymentData, setPaymentData] = useState(null);
   const [error, setError] = useState(null);
@@ -155,10 +157,13 @@ function PaymentSuccess() {
         console.log('💳 결제 성공 처리:', { orderId, paymentKey, amount });
 
         // 결제 완료 처리
-        const processedPayment = handlePaymentSuccess(orderId, paymentKey, parseInt(amount));
+        const processedPayment = await handlePaymentSuccess(orderId, paymentKey, parseInt(amount));
         setPaymentData(processedPayment);
 
         console.log('✅ 결제 완료 처리 성공:', processedPayment);
+        
+        // ETH 잔액 새로고침
+        await fetchBalance();
 
       } catch (error) {
         console.error('❌ 결제 처리 실패:', error);

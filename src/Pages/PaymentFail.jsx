@@ -156,7 +156,7 @@ function PaymentFail() {
         console.log('❌ 결제 실패 처리:', { orderId, errorCode, errorMessage });
 
         // 결제 실패 처리
-        const processedError = handlePaymentFailure(
+        const processedError = await handlePaymentFailure(
           orderId, 
           errorCode || 'UNKNOWN_ERROR', 
           errorMessage || '알 수 없는 오류가 발생했습니다.'

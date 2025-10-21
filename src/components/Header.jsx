@@ -61,11 +61,11 @@ const Nav = styled.nav`
 `;
 
 const NavLink = styled(Link)`
-  font-size: ${({ theme }) => theme.font.size.md};
+  font-size: ${({ theme }) => theme.font.size.sm};
   font-weight: ${({ theme }) => theme.font.weight.medium};
   color: ${({ theme }) => theme.colors.textSub};
   transition: ${({ theme }) => theme.transition.fast};
-  padding: ${({ theme }) => theme.spacing(1)} ${({ theme }) => theme.spacing(2)};
+  padding: ${({ theme }) => theme.spacing(0.5)} ${({ theme }) => theme.spacing(1.5)};
   border-radius: ${({ theme }) => theme.radius.sm};
   white-space: nowrap;
 
@@ -75,40 +75,43 @@ const NavLink = styled(Link)`
   }
 
   @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
-    font-size: ${({ theme }) => theme.font.size.sm};
-    padding: ${({ theme }) => theme.spacing(0.5)} ${({ theme }) => theme.spacing(1)};
+    font-size: ${({ theme }) => theme.font.size.xs};
+    padding: ${({ theme }) => theme.spacing(0.25)} ${({ theme }) => theme.spacing(1)};
   }
 `;
 
 const UserGreeting = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing(1)};
+  gap: ${({ theme }) => theme.spacing(0.5)};
   color: ${({ theme }) => theme.colors.text};
-  font-size: ${({ theme }) => theme.font.size.md};
+  font-size: ${({ theme }) => theme.font.size.sm};
   font-weight: ${({ theme }) => theme.font.weight.medium};
   cursor: pointer;
-  padding: ${({ theme }) => theme.spacing(1)} ${({ theme }) => theme.spacing(2)};
+  padding: ${({ theme }) => theme.spacing(0.5)} ${({ theme }) => theme.spacing(1.5)};
   border-radius: ${({ theme }) => theme.radius.md};
+  white-space: nowrap;
+  max-width: 200px;
 
   @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
-    font-size: ${({ theme }) => theme.font.size.sm};
-    gap: ${({ theme }) => theme.spacing(0.5)};
-    padding: ${({ theme }) => theme.spacing(0.5)} ${({ theme }) => theme.spacing(1)};
+    font-size: ${({ theme }) => theme.font.size.xs};
+    gap: ${({ theme }) => theme.spacing(0.25)};
+    padding: ${({ theme }) => theme.spacing(0.25)} ${({ theme }) => theme.spacing(1)};
+    max-width: 150px;
   }
 `;
 
 const GreetingText = styled.span`
   color: ${({ theme }) => theme.colors.textSub};
-  font-size: ${({ theme }) => theme.font.size.md};
+  font-size: ${({ theme }) => theme.font.size.sm};
 
   @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
-    font-size: ${({ theme }) => theme.font.size.sm};
+    font-size: ${({ theme }) => theme.font.size.xs};
   }
 `;
 
 const Nickname = styled.span`
-  font-size: ${({ theme }) => theme.font.size.lg};
+  font-size: ${({ theme }) => theme.font.size.md};
   font-weight: ${({ theme }) => theme.font.weight.bold};
   color: #60a5fa; /* 더 밝은 파란색 */
   text-decoration: underline;
@@ -188,11 +191,12 @@ const LogoutButton = styled.button`
   border: none;
   color: ${({ theme }) => theme.colors.textSub};
   cursor: pointer;
-  font-size: ${({ theme }) => theme.font.size.md};
+  font-size: ${({ theme }) => theme.font.size.sm};
   font-weight: ${({ theme }) => theme.font.weight.medium};
-  padding: ${({ theme }) => theme.spacing(1)} ${({ theme }) => theme.spacing(2)};
+  padding: ${({ theme }) => theme.spacing(0.5)} ${({ theme }) => theme.spacing(1.5)};
   border-radius: ${({ theme }) => theme.radius.md};
   transition: ${({ theme }) => theme.transition.normal};
+  white-space: nowrap;
 
   &:hover {
     color: ${({ theme }) => theme.colors.text};
@@ -527,24 +531,49 @@ const ModalCloseButton = styled.button`
 `;
 
 const MobileMenu = styled.div`
-  display: none;
+  display: ${({ $isOpen }) => ($isOpen ? 'flex' : 'none')};
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: ${({ theme }) => theme.colors.bgLight};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.radius.lg};
+  flex-direction: column;
+  padding: ${({ theme }) => theme.spacing(2)};
+  gap: ${({ theme }) => theme.spacing(1.5)};
+  box-shadow: ${({ theme }) => theme.shadow.lg};
+  min-width: 200px;
+  z-index: 1000;
 
   @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
-    display: ${({ $isOpen }) => ($isOpen ? 'flex' : 'none')};
-    position: absolute;
-    top: 100%;
     left: 0;
     right: 0;
-    background: ${({ theme }) => theme.colors.bgLight};
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
     border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-    flex-direction: column;
     padding: ${({ theme }) => theme.spacing(3)};
     gap: ${({ theme }) => theme.spacing(2)};
-    box-shadow: ${({ theme }) => theme.shadow.lg};
-    transform: ${({ $isOpen }) => ($isOpen ? 'translateY(0)' : 'translateY(-100%)')};
-    opacity: ${({ $isOpen }) => ($isOpen ? 1 : 0)};
-    visibility: ${({ $isOpen }) => ($isOpen ? 'visible' : 'hidden')};
-    transition: all 0.3s ease;
+    min-width: auto;
+  }
+
+  /* 햄버거 메뉴 내 NavLink 스타일 */
+  a {
+    display: block;
+    padding: ${({ theme }) => theme.spacing(1.5)} ${({ theme }) => theme.spacing(2)};
+    background: ${({ theme }) => theme.colors.card};
+    border: 1px solid ${({ theme }) => theme.colors.border};
+    border-radius: ${({ theme }) => theme.radius.md};
+    text-align: center;
+    font-weight: ${({ theme }) => theme.font.weight.medium};
+    transition: ${({ theme }) => theme.transition.normal};
+
+    &:hover {
+      background: ${({ theme }) => theme.colors.primary};
+      color: white;
+      transform: translateY(-1px);
+      box-shadow: ${({ theme }) => theme.shadow.sm};
+    }
   }
 `;
 
@@ -566,10 +595,11 @@ const MobileNavLink = styled(Link)`
 const DesktopNav = styled.div`
   display: flex;
   align-items: center;
-  gap: ${({ theme }) => theme.spacing(3)};
+  gap: ${({ theme }) => theme.spacing(2)};
+  flex-wrap: nowrap;
 
   @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
-    gap: ${({ theme }) => theme.spacing(2)};
+    gap: ${({ theme }) => theme.spacing(1.5)};
   }
 
   @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
@@ -578,15 +608,16 @@ const DesktopNav = styled.div`
 `;
 
 const CreateButton = styled.button`
-  padding: ${({ theme }) => theme.spacing(1.5)} ${({ theme }) => theme.spacing(3)};
+  padding: ${({ theme }) => theme.spacing(1)} ${({ theme }) => theme.spacing(2)};
   background: ${({ theme }) => theme.colors.primary};
   color: ${({ theme }) => theme.colors.text};
   border: none;
   border-radius: ${({ theme }) => theme.radius.md};
   font-weight: ${({ theme }) => theme.font.weight.semibold};
-  font-size: ${({ theme }) => theme.font.size.md};
+  font-size: ${({ theme }) => theme.font.size.sm};
   cursor: pointer;
   transition: ${({ theme }) => theme.transition.normal};
+  white-space: nowrap;
 
   &:hover {
     background: ${({ theme }) => theme.colors.hover};
@@ -723,9 +754,8 @@ function Header() {
                 // 로그인된 상태
                 <>
                   <UserGreeting onClick={toggleUserInfoModal} data-user-greeting>
-                    <GreetingText>어서오세요</GreetingText>
+                    <GreetingText>안녕하세요,</GreetingText>
                     <Nickname>{user.username}</Nickname>
-                    <GreetingText>님</GreetingText>
                   </UserGreeting>
                   <DesktopCreateButton onClick={handleCreateClick}>
                     NFT 등록
@@ -754,7 +784,7 @@ function Header() {
               </WalletButton>
             )}
 
-            {/* 모바일 햄버거 버튼 - 로그인된 사용자만 표시 */}
+            {/* 햄버거 버튼 - 로그인된 사용자만 표시 */}
             {isLoggedIn && (
               <MobileMenuButton
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -765,15 +795,17 @@ function Header() {
             )}
           </Nav>
 
-          {/* 모바일 드롭다운 메뉴 - 로그인된 사용자만 */}
+          {/* 햄버거 드롭다운 메뉴 - 로그인된 사용자만 */}
           {isLoggedIn && (
             <MobileMenu $isOpen={mobileMenuOpen}>
                      <UserGreeting onClick={toggleUserInfoModal} data-user-greeting>
-                       <GreetingText>어서오세요</GreetingText>
+                       <GreetingText>안녕하세요,</GreetingText>
                        <Nickname>{user.username}</Nickname>
-                       <GreetingText>님</GreetingText>
                      </UserGreeting>
                      
+              <NavLink to="/portfolio" onClick={closeMobileMenu}>
+                포트폴리오
+              </NavLink>
               <CreateButton onClick={() => { handleCreateClick(); closeMobileMenu(); }}>
                 NFT 등록
               </CreateButton>

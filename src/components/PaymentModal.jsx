@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { requestPayment, convertETHToKRW, convertKRWToETH } from '../lib/tossPayments';
 import { useUser } from '../contexts/UserContext';
+import { useETHBalance } from '../hooks/useETHBalance';
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -194,6 +195,7 @@ const ErrorMessage = styled.div`
 
 function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
   const { user } = useUser();
+  const { balance, fetchBalance } = useETHBalance();
   const [krwAmount, setKrwAmount] = useState(0);
   const [ethAmount, setEthAmount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -201,31 +203,65 @@ function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
 
   // NFT 가격을 KRW로 변환
   useEffect(() => {
-    if (nft && nft.price) {
-      const krw = convertETHToKRW(parseFloat(nft.price));
-      setKrwAmount(krw);
-      setEthAmount(parseFloat(nft.price));
-    }
+    const initializeAmounts = async () => {
+      if (nft && nft.price) {
+        try {
+          const krw = await convertETHToKRW(parseFloat(nft.price));
+          setKrwAmount(krw);
+          setEthAmount(parseFloat(nft.price));
+        } catch (error) {
+          console.error('환율 변환 실패:', error);
+          // 폴백: 고정 환율 사용
+          const ETH_TO_KRW_RATE = 3000000;
+          const krw = Math.round(parseFloat(nft.price) * ETH_TO_KRW_RATE);
+          setKrwAmount(krw);
+          setEthAmount(parseFloat(nft.price));
+        }
+      }
+    };
+
+    initializeAmounts();
   }, [nft]);
 
   // KRW 입력 시 ETH로 변환
-  const handleKrwChange = (e) => {
+  const handleKrwChange = async (e) => {
     const krw = parseInt(e.target.value) || 0;
     setKrwAmount(krw);
-    setEthAmount(convertKRWToETH(krw));
+    try {
+      const eth = await convertKRWToETH(krw);
+      setEthAmount(eth);
+    } catch (error) {
+      console.error('환율 변환 실패:', error);
+      // 폴백: 고정 환율 사용
+      const ETH_TO_KRW_RATE = 3000000;
+      setEthAmount(parseFloat((krw / ETH_TO_KRW_RATE).toFixed(6)));
+    }
   };
 
   // ETH 입력 시 KRW로 변환
-  const handleEthChange = (e) => {
+  const handleEthChange = async (e) => {
     const eth = parseFloat(e.target.value) || 0;
     setEthAmount(eth);
-    setKrwAmount(convertETHToKRW(eth));
+    try {
+      const krw = await convertETHToKRW(eth);
+      setKrwAmount(krw);
+    } catch (error) {
+      console.error('환율 변환 실패:', error);
+      // 폴백: 고정 환율 사용
+      const ETH_TO_KRW_RATE = 3000000;
+      setKrwAmount(Math.round(eth * ETH_TO_KRW_RATE));
+    }
   };
 
   // 결제 요청 처리
   const handlePayment = async () => {
     if (!user) {
       setError('로그인이 필요합니다.');
+      return;
+    }
+
+    if (!nft || !nft.id) {
+      setError('NFT 정보가 올바르지 않습니다.');
       return;
     }
 
@@ -240,9 +276,27 @@ function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
     try {
       console.log('💳 결제 요청 시작:', { nft, krwAmount, ethAmount });
       
-      const response = await requestPayment(nft, user.id);
+      // NFT 데이터 검증 및 보완
+      const validatedNFT = {
+        id: nft.id,
+        name: nft.name && nft.name.trim() !== '' ? nft.name : 'NFT 구매',
+        price: nft.price || '0',
+        description: nft.description || 'No description available'
+      };
+      
+      console.log('🔍 NFT 데이터 검증:', {
+        id: validatedNFT.id,
+        name: validatedNFT.name,
+        price: validatedNFT.price,
+        originalName: nft.name
+      });
+      
+      const response = await requestPayment(validatedNFT, user.id);
       
       console.log('✅ 결제 요청 성공:', response);
+      
+      // ETH 잔액 새로고침
+      await fetchBalance();
       
       // 결제 성공 콜백 호출
       if (onSuccess) {
