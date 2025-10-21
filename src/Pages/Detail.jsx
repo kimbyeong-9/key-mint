@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAccount } from 'wagmi';
 import BadgeNFT from '../components/BadgeNFT';
-import { useListing } from '../hooks/useMarket';
-import { useTokenURI, useOwnerOf } from '../hooks/useNFT';
+import { useNFTDetail } from '../hooks/useNFTDetail';
 import { formatEther, shortenAddress, formatDate } from '../lib/format';
-import { fetchMetadata, ipfsToHttp } from '../lib/ipfs';
 
 const Container = styled.div`
   max-width: 1200px;
@@ -196,35 +194,70 @@ const LoadingContainer = styled.div`
   color: ${({ theme }) => theme.colors.textSub};
 `;
 
+// 이미지 확대 보기 모달 스타일
+const ImageModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: ${({ theme }) => theme.spacing(2)};
+  cursor: pointer;
+`;
+
+const ModalImage = styled.img`
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: ${({ theme }) => theme.radius.lg};
+`;
+
+const CloseButton = styled.button`
+  position: absolute;
+  top: ${({ theme }) => theme.spacing(2)};
+  right: ${({ theme }) => theme.spacing(2)};
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: ${({ theme }) => theme.transition.fast};
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+`;
+
+const ImageContainerClickable = styled(ImageContainer)`
+  cursor: pointer;
+  transition: ${({ theme }) => theme.transition.fast};
+
+  &:hover {
+    transform: scale(1.02);
+  }
+`;
+
 function Detail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { address, isConnected } = useAccount();
 
-  const [metadata, setMetadata] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const { listing, isLoading: listingLoading } = useListing(id);
-  const { tokenURI, isLoading: tokenURILoading } = useTokenURI(listing?.tokenId);
-  const { owner, isLoading: ownerLoading } = useOwnerOf(listing?.tokenId);
-
-  // 메타데이터 로드
-  useEffect(() => {
-    const loadMetadata = async () => {
-      if (tokenURI) {
-        try {
-          const data = await fetchMetadata(tokenURI);
-          setMetadata(data);
-        } catch (error) {
-          console.error('메타데이터 로드 실패:', error);
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadMetadata();
-  }, [tokenURI]);
+  // 우리의 NFT 시스템에서 데이터 조회
+  const { nft, loading, error, refetch } = useNFTDetail(id);
+  
+  // 이미지 확대 보기 상태
+  const [showImageModal, setShowImageModal] = useState(false);
 
   const handleBuy = () => {
     if (!isConnected) {
@@ -232,19 +265,28 @@ function Detail() {
       return;
     }
 
-    if (address === listing?.seller) {
+    if (address === nft?.creatorId) {
       alert('자신의 NFT는 구매할 수 없습니다.');
       return;
     }
 
-    navigate(`/checkout/${id}`);
+    // TODO: 실제 구매 로직 구현
+    alert('구매 기능은 아직 구현되지 않았습니다.');
   };
 
   const handleBack = () => {
     navigate('/');
   };
 
-  if (listingLoading || tokenURILoading || ownerLoading || loading) {
+  const handleImageClick = () => {
+    setShowImageModal(true);
+  };
+
+  const handleCloseImageModal = () => {
+    setShowImageModal(false);
+  };
+
+  if (loading) {
     return (
       <Container>
         <LoadingContainer>로딩 중...</LoadingContainer>
@@ -252,18 +294,18 @@ function Detail() {
     );
   }
 
-  if (!listing || !listing.active) {
+  if (error || !nft) {
     return (
       <Container>
         <BackButton onClick={handleBack}>← 돌아가기</BackButton>
         <LoadingContainer>
-          해당 NFT를 찾을 수 없거나 판매가 종료되었습니다.
+          {error || '해당 NFT를 찾을 수 없습니다.'}
         </LoadingContainer>
       </Container>
     );
   }
 
-  const imageUrl = metadata?.image ? ipfsToHttp(metadata.image) : '/placeholder-nft.png';
+  const imageUrl = nft.image || '/placeholder-nft.png';
 
   return (
     <Container>
@@ -271,82 +313,117 @@ function Detail() {
 
       <Content>
         <ImageSection>
-          <ImageContainer>
-            <Image src={imageUrl} alt={metadata?.name || 'NFT'} />
+          <ImageContainerClickable onClick={handleImageClick}>
+            <Image src={imageUrl} alt={nft.name} />
             <BadgeContainer>
               <BadgeNFT />
             </BadgeContainer>
-          </ImageContainer>
+          </ImageContainerClickable>
         </ImageSection>
 
         <InfoSection>
           <div>
-            <Title>{metadata?.name || 'Untitled NFT'}</Title>
-            <Description>
-              {metadata?.description || 'No description available'}
-            </Description>
+            <Title>{nft.name}</Title>
+            <Description>{nft.description}</Description>
           </div>
 
           <PriceBox>
             <PriceLabel>현재 가격</PriceLabel>
-            <PriceValue>{formatEther(listing.price)} ETH</PriceValue>
+            <PriceValue>
+              {nft.price && nft.price !== '0' ? 
+                (nft.price.includes('.') ? `${nft.price} ETH` : `${formatEther(nft.price)} ETH`) : 
+                '가격 미정'
+              }
+            </PriceValue>
             <BuyButton
               onClick={handleBuy}
-              disabled={!listing.active || address === listing.seller}
+              disabled={address === nft.creatorId}
             >
-              {address === listing.seller ? '자신의 NFT' : '구매하기'}
+              {address === nft.creatorId ? '자신의 NFT' : '구매하기'}
             </BuyButton>
           </PriceBox>
 
           <DetailBox>
             <DetailTitle>상세 정보</DetailTitle>
             <DetailItem>
-              <DetailLabel>컨트랙트 주소</DetailLabel>
+              <DetailLabel>NFT ID</DetailLabel>
+              <DetailValue>#{nft.id}</DetailValue>
+            </DetailItem>
+            <DetailItem>
+              <DetailLabel>크리에이터</DetailLabel>
+              <DetailValue>{nft.creator}</DetailValue>
+            </DetailItem>
+            <DetailItem>
+              <DetailLabel>생성일</DetailLabel>
+              <DetailValue>{formatDate(nft.createdAt)}</DetailValue>
+            </DetailItem>
+            <DetailItem>
+              <DetailLabel>상태</DetailLabel>
+              <DetailValue>{nft.status === 'draft' ? '임시 저장' : '활성'}</DetailValue>
+            </DetailItem>
+            <DetailItem>
+              <DetailLabel>파일명</DetailLabel>
+              <DetailValue>{nft.imageMetadata?.fileName}</DetailValue>
+            </DetailItem>
+            <DetailItem>
+              <DetailLabel>파일 크기</DetailLabel>
               <DetailValue>
-                <AddressLink
-                  href={`https://sepolia.etherscan.io/address/${listing.nftContract}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {shortenAddress(listing.nftContract)}
-                </AddressLink>
+                {nft.imageMetadata?.fileSize ? 
+                  `${(nft.imageMetadata.fileSize / 1024 / 1024).toFixed(2)} MB` : 
+                  'N/A'
+                }
               </DetailValue>
             </DetailItem>
             <DetailItem>
-              <DetailLabel>토큰 ID</DetailLabel>
-              <DetailValue>#{listing.tokenId?.toString()}</DetailValue>
-            </DetailItem>
-            <DetailItem>
-              <DetailLabel>소유자</DetailLabel>
+              <DetailLabel>이미지 크기</DetailLabel>
               <DetailValue>
-                <AddressLink
-                  href={`https://sepolia.etherscan.io/address/${owner}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {shortenAddress(owner)}
-                </AddressLink>
+                {nft.imageMetadata?.width && nft.imageMetadata?.height ? 
+                  `${nft.imageMetadata.width} × ${nft.imageMetadata.height}` : 
+                  'N/A'
+                }
               </DetailValue>
             </DetailItem>
-            <DetailItem>
-              <DetailLabel>판매자</DetailLabel>
-              <DetailValue>
-                <AddressLink
-                  href={`https://sepolia.etherscan.io/address/${listing.seller}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {shortenAddress(listing.seller)}
-                </AddressLink>
-              </DetailValue>
-            </DetailItem>
-            <DetailItem>
-              <DetailLabel>블록체인</DetailLabel>
-              <DetailValue>Ethereum (Sepolia)</DetailValue>
-            </DetailItem>
+            {nft.optimization && (
+              <>
+                <DetailItem>
+                  <DetailLabel>압축률</DetailLabel>
+                  <DetailValue>{nft.optimization.compressionRatio}%</DetailValue>
+                </DetailItem>
+                <DetailItem>
+                  <DetailLabel>원본 크기</DetailLabel>
+                  <DetailValue>
+                    {nft.optimization.originalSize ? 
+                      `${(nft.optimization.originalSize / 1024 / 1024).toFixed(2)} MB` : 
+                      'N/A'
+                    }
+                  </DetailValue>
+                </DetailItem>
+                <DetailItem>
+                  <DetailLabel>최적화 크기</DetailLabel>
+                  <DetailValue>
+                    {nft.optimization.optimizedSize ? 
+                      `${(nft.optimization.optimizedSize / 1024 / 1024).toFixed(2)} MB` : 
+                      'N/A'
+                    }
+                  </DetailValue>
+                </DetailItem>
+              </>
+            )}
           </DetailBox>
         </InfoSection>
       </Content>
+
+      {/* 이미지 확대 보기 모달 */}
+      {showImageModal && (
+        <ImageModal onClick={handleCloseImageModal}>
+          <CloseButton onClick={handleCloseImageModal}>&times;</CloseButton>
+          <ModalImage 
+            src={imageUrl} 
+            alt={nft.name}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </ImageModal>
+      )}
     </Container>
   );
 }
