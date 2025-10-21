@@ -13,7 +13,7 @@ const GlobalStyle = createGlobalStyle`
   }
 
   html, body, #root {
-    height: 100%;
+    min-height: 100%;
     width: 100%;
   }
 
@@ -28,6 +28,8 @@ const GlobalStyle = createGlobalStyle`
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    overflow-y: scroll !important; /* 강제로 스크롤 활성화 */
+    height: auto !important; /* height 제한 해제 */
   }
 
   /* 링크 스타일 */

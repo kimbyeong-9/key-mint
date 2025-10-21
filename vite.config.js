@@ -13,12 +13,20 @@ export default defineConfig({
       protocol: 'ws',
       host: 'localhost',
       port: 3001,
-      clientPort: 3001
+      clientPort: 3001,
+      timeout: 30000,
+      overlay: true
     },
     // WebSocket 연결 안정성을 위한 설정
     watch: {
       usePolling: false,
-      interval: 100
+      interval: 100,
+      ignored: ['**/node_modules/**', '**/.git/**']
+    },
+    // WebSocket 연결 재시도 설정
+    ws: {
+      port: 3001,
+      host: 'localhost'
     }
   }
 })
