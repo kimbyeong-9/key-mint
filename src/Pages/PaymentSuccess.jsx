@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { handlePaymentSuccess } from '../lib/tossPayments';
 import { useETHBalance } from '../hooks/useETHBalance';
+import { usePortfolio } from '../hooks/usePortfolio';
+import { useNotification } from '../components/NotificationSystem';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -138,6 +140,8 @@ function PaymentSuccess() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { fetchBalance } = useETHBalance();
+  const { refreshPortfolio } = usePortfolio();
+  const { notifyPurchaseSuccess, notifyPortfolioUpdate } = useNotification();
   const [isProcessing, setIsProcessing] = useState(true);
   const [paymentData, setPaymentData] = useState(null);
   const [error, setError] = useState(null);
@@ -162,8 +166,12 @@ function PaymentSuccess() {
 
         console.log('✅ 결제 완료 처리 성공:', processedPayment);
         
-        // ETH 잔액 새로고침
+        // ETH 잔액 및 포트폴리오 새로고침
         await fetchBalance();
+        await refreshPortfolio();
+        
+        // 알림 표시
+        notifyPortfolioUpdate();
 
       } catch (error) {
         console.error('❌ 결제 처리 실패:', error);

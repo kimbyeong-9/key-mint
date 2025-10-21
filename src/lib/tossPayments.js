@@ -82,7 +82,9 @@ export const createPaymentRequest = async (nft, userId) => {
       user_uuid: userId,
       order_id_param: orderId,
       amount_krw_param: krwAmount,
-      amount_eth_param: ethAmount
+      amount_eth_param: ethAmount,
+      nft_id_param: nft.id,
+      nft_name_param: nft.name || 'NFT 구매'
     });
     
     if (error) {
@@ -229,30 +231,70 @@ export const handlePaymentSuccess = async (orderId, paymentKey, amount) => {
   try {
     console.log('💳 결제 완료 처리 시작:', { orderId, paymentKey, amount });
     
-    // Supabase에 결제 완료 처리
-    const { data, error } = await supabase.rpc('process_payment_success', {
+    // 1. Supabase에 결제 완료 처리
+    const { data: paymentData, error: paymentError } = await supabase.rpc('process_payment_success', {
       order_id_param: orderId,
       payment_key_param: paymentKey
     });
     
-    if (error) {
-      console.error('❌ 결제 완료 처리 실패:', error);
-      throw new Error(`결제 완료 처리에 실패했습니다: ${error.message}`);
+    if (paymentError) {
+      console.error('❌ 결제 완료 처리 실패:', paymentError);
+      throw new Error(`결제 완료 처리에 실패했습니다: ${paymentError.message}`);
     }
     
-    console.log('✅ 결제 완료 처리 성공:', data);
+    console.log('✅ 결제 완료 처리 성공:', paymentData);
     
-    // 로컬 스토리지에도 저장 (백업용)
-    const paymentData = {
+    // 2. 결제 내역에서 NFT 구매 정보 조회
+    const { data: purchaseInfo, error: purchaseError } = await supabase
+      .from('payment_history')
+      .select(`
+        id,
+        user_id,
+        amount_eth,
+        nft_purchases!inner(
+          nft_id,
+          eth_amount
+        )
+      `)
+      .eq('order_id', orderId)
+      .single();
+    
+    if (purchaseError || !purchaseInfo) {
+      console.warn('⚠️ NFT 구매 정보를 찾을 수 없습니다:', purchaseError);
+    } else {
+      console.log('🎨 NFT 구매 정보 발견:', purchaseInfo);
+      
+      // 3. NFT 구매 처리 (포트폴리오 자동 업데이트 포함)
+      try {
+        const { data: nftPurchaseData, error: nftPurchaseError } = await supabase.rpc('process_nft_purchase', {
+          user_uuid: purchaseInfo.user_id,
+          nft_id_param: purchaseInfo.nft_purchases.nft_id,
+          eth_amount_param: purchaseInfo.nft_purchases.eth_amount
+        });
+        
+        if (nftPurchaseError) {
+          console.error('❌ NFT 구매 처리 실패:', nftPurchaseError);
+          // NFT 구매 실패해도 결제는 완료된 상태이므로 경고만 표시
+        } else {
+          console.log('✅ NFT 구매 및 포트폴리오 업데이트 성공:', nftPurchaseData);
+        }
+      } catch (nftError) {
+        console.error('❌ NFT 구매 처리 중 오류:', nftError);
+        // NFT 구매 실패해도 결제는 완료된 상태이므로 경고만 표시
+      }
+    }
+    
+    // 4. 로컬 스토리지에도 저장 (백업용)
+    const localPaymentData = {
       orderId,
       paymentKey,
       amount,
       status: 'completed',
       completedAt: new Date().toISOString()
     };
-    localStorage.setItem(`payment_${orderId}`, JSON.stringify(paymentData));
+    localStorage.setItem(`payment_${orderId}`, JSON.stringify(localPaymentData));
     
-    return paymentData;
+    return localPaymentData;
     
   } catch (error) {
     console.error('❌ 결제 완료 처리 실패:', error);

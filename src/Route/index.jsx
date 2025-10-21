@@ -10,6 +10,7 @@ import Checkout from "../Pages/Checkout";
 import PaymentSuccess from "../Pages/PaymentSuccess";
 import PaymentFail from "../Pages/PaymentFail";
 import Portfolio from "../Pages/Portfolio";
+import PurchaseHistory from "../Pages/PurchaseHistory";
 
 // 🔥 테스트용 간단한 회원가입/로그인
 import SignupSimple from "../Pages/Signup-simple";
@@ -37,6 +38,7 @@ function AppRoutes() {
             <Route path="/item/:id" element={<Detail />} />
             <Route path="/create" element={<Create />} />
             <Route path="/portfolio" element={<Portfolio />} />
+            <Route path="/portfolio/purchases" element={<PurchaseHistory />} />
 
       {/* 결제 페이지 */}
       <Route path="/checkout/:listingId" element={<Checkout />} />

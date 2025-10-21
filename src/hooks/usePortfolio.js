@@ -111,6 +111,13 @@ export function usePortfolio() {
     }
   }, [user?.id]);
 
+  // 포트폴리오 강제 새로고침
+  const refreshPortfolio = useCallback(async () => {
+    await fetchPortfolio();
+    await fetchNftOwnership();
+    await fetchActivityLogs();
+  }, [fetchPortfolio, fetchNftOwnership, fetchActivityLogs]);
+
   // 모든 데이터 새로고침
   const refreshAll = useCallback(async () => {
     await Promise.all([
@@ -134,6 +141,7 @@ export function usePortfolio() {
     fetchPortfolio,
     fetchNftOwnership,
     fetchActivityLogs,
-    refreshAll
+    refreshAll,
+    refreshPortfolio
   };
 }

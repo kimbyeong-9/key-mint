@@ -54,6 +54,36 @@ const StatLabel = styled.div`
   color: ${({ theme }) => theme.colors.textSub};
 `;
 
+const ActionButtons = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing(3)};
+  margin-bottom: ${({ theme }) => theme.spacing(6)};
+  justify-content: center;
+  flex-wrap: wrap;
+`;
+
+const ActionButton = styled.button`
+  padding: ${({ theme }) => theme.spacing(2)} ${({ theme }) => theme.spacing(4)};
+  background: ${({ theme }) => theme.colors.primary};
+  color: white;
+  border: none;
+  border-radius: ${({ theme }) => theme.radius.md};
+  font-size: ${({ theme }) => theme.font.size.md};
+  font-weight: ${({ theme }) => theme.font.weight.medium};
+  cursor: pointer;
+  transition: ${({ theme }) => theme.transition.fast};
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.primaryHover};
+    transform: translateY(-2px);
+    box-shadow: ${({ theme }) => theme.shadow.md};
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
 const Section = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing(6)};
 `;
@@ -182,7 +212,7 @@ const Button = styled.button`
 
 function Portfolio() {
   const navigate = useNavigate();
-  const { portfolio, nftOwnership, activityLogs, loading, error, refreshAll } = usePortfolio();
+  const { portfolio, nftOwnership, activityLogs, loading, error, refreshPortfolio } = usePortfolio();
   const { balance } = useETHBalance();
   const [activeTab, setActiveTab] = useState('nfts');
 
@@ -214,7 +244,7 @@ function Portfolio() {
         <EmptyState>
           <h3>오류가 발생했습니다</h3>
           <p>{error}</p>
-          <Button onClick={refreshAll}>다시 시도</Button>
+          <Button onClick={refreshPortfolio}>다시 시도</Button>
         </EmptyState>
       </Container>
     );
@@ -245,6 +275,15 @@ function Portfolio() {
           <StatLabel>현재 잔액</StatLabel>
         </StatCard>
       </StatsGrid>
+
+      <ActionButtons>
+        <ActionButton onClick={() => navigate('/portfolio/purchases')}>
+          구매 내역 보기
+        </ActionButton>
+        <ActionButton onClick={() => navigate('/')}>
+          NFT 둘러보기
+        </ActionButton>
+      </ActionButtons>
 
       <Section>
         <SectionTitle>보유 NFT ({nftOwnership.length}개)</SectionTitle>

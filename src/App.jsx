@@ -2,6 +2,7 @@ import Layout from "./components/Layout";
 import AppRoutes from "./Route";
 import { UserProvider } from "./contexts/UserContext";
 import ErrorBoundary from "./components/ErrorBoundary";
+import NotificationProvider from "./components/NotificationSystem";
 import "./lib/supabaseMCP"; // MCP 초기화
 
 /**
@@ -12,11 +13,13 @@ function App() {
   return (
     <ErrorBoundary>
       <UserProvider>
-        <ErrorBoundary>
-          <Layout>
-            <AppRoutes />
-          </Layout>
-        </ErrorBoundary>
+        <NotificationProvider>
+          <ErrorBoundary>
+            <Layout>
+              <AppRoutes />
+            </Layout>
+          </ErrorBoundary>
+        </NotificationProvider>
       </UserProvider>
     </ErrorBoundary>
   );
