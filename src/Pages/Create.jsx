@@ -557,16 +557,21 @@ function Create() {
       existingNFTs.push(nftData);
       localStorage.setItem('draftNFTs', JSON.stringify(existingNFTs));
 
-      console.log('✅ NFT 데이터 저장 완료');
+             console.log('✅ NFT 데이터 저장 완료');
 
-      // 성공 메시지에 최적화 정보 포함
-      const compressionInfo = imageResult.optimization 
-        ? ` (압축률: ${imageResult.optimization.compressionRatio}%)`
-        : '';
-      
-      alert(`NFT가 성공적으로 등록되었습니다!${compressionInfo}`);
-      handleCloseModal();
-      navigate('/');
+             // 성공 메시지에 최적화 정보 포함
+             const compressionInfo = imageResult.optimization
+               ? ` (압축률: ${imageResult.optimization.compressionRatio}%)`
+               : '';
+
+             alert(`NFT가 성공적으로 등록되었습니다!${compressionInfo}`);
+             handleCloseModal();
+             
+             // 홈페이지로 이동하고 새로고침 이벤트 발생
+             navigate('/');
+             
+             // 로컬 스토리지 변경 이벤트 발생 (홈페이지에서 감지)
+             window.dispatchEvent(new Event('storage'));
 
     } catch (error) {
       console.error('❌ NFT 등록 실패:', error);

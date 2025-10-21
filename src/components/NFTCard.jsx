@@ -113,7 +113,10 @@ function NFTCard({ nft }) {
     }
   };
 
-  const imageUrl = nft.image ? ipfsToHttp(nft.image) : '/placeholder-nft.png';
+  // 이미지 URL 처리 - Supabase Storage URL 또는 IPFS URL
+  const imageUrl = nft.image ? 
+    (nft.image.startsWith('http') ? nft.image : ipfsToHttp(nft.image)) : 
+    '/placeholder-nft.png';
 
   return (
     <>
@@ -133,13 +136,16 @@ function NFTCard({ nft }) {
             <Price>
               <PriceLabel>가격</PriceLabel>
               <PriceValue>
-                {nft.price ? `${formatEther(nft.price)} ETH` : 'N/A'}
+                {nft.price && nft.price !== '0' ? 
+                  (nft.price.includes('.') ? `${nft.price} ETH` : `${formatEther(nft.price)} ETH`) : 
+                  '가격 미정'
+                }
               </PriceValue>
             </Price>
 
-            {nft.seller && (
+            {nft.creator && (
               <Owner>
-                판매자: {shortenAddress(nft.seller)}
+                크리에이터: {nft.creator}
               </Owner>
             )}
           </Footer>

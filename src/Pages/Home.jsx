@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import NFTCard from '../components/NFTCard';
 import { useUser } from '../contexts/UserContext';
 import { useListingCounter } from '../hooks/useMarket';
+import { useNFTs } from '../hooks/useNFTs';
 
 const Container = styled.div`
   max-width: 1280px;
@@ -259,73 +260,45 @@ const LoadingSpinner = styled.div`
 function Home() {
   const navigate = useNavigate();
   const { user } = useUser();
-  const [nfts, setNfts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, recent, popular
   const { listingCounter } = useListingCounter();
+  
+  // 실제 NFT 데이터를 가져오는 훅 사용
+  const { nfts, loading, error, refetch } = useNFTs();
 
   const handleCreateClick = () => {
     navigate('/create');
   };
 
-  // NFT 목록 로드
+  // NFT 등록 후 목록 새로고침을 위한 useEffect
   useEffect(() => {
-    const loadNFTs = async () => {
-      try {
-        setLoading(true);
-
-        // TODO: 백엔드 API에서 NFT 목록 가져오기
-        // const response = await fetch('/api/nfts');
-        // const data = await response.json();
-        // setNfts(data);
-
-        // 임시 더미 데이터 - 로컬 placeholder 이미지 사용
-        const dummyNFTs = [
-          {
-            listingId: 1,
-            tokenId: 1,
-            name: 'Crypto Art #001',
-            description: '독특한 디지털 아트워크',
-            image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%234a5568" width="400" height="400"/%3E%3Ctext fill="%23a0aec0" font-family="system-ui, sans-serif" font-size="20" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3ECrypto Art %23001%3C/text%3E%3C/svg%3E',
-            price: '1000000000000000000', // 1 ETH in Wei
-            seller: '0x1234567890123456789012345678901234567890',
-          },
-          {
-            listingId: 2,
-            tokenId: 2,
-            name: 'Digital Masterpiece',
-            description: '프리미엄 NFT 컬렉션',
-            image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%235a67d8" width="400" height="400"/%3E%3Ctext fill="%23cbd5e0" font-family="system-ui, sans-serif" font-size="20" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EDigital Masterpiece%3C/text%3E%3C/svg%3E',
-            price: '2000000000000000000', // 2 ETH
-            seller: '0x2345678901234567890123456789012345678901',
-          },
-          {
-            listingId: 3,
-            tokenId: 3,
-            name: 'Abstract Dreams',
-            description: '추상적인 꿈의 세계',
-            image: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="400"%3E%3Crect fill="%2348bb78" width="400" height="400"/%3E%3Ctext fill="%23c6f6d5" font-family="system-ui, sans-serif" font-size="20" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EAbstract Dreams%3C/text%3E%3C/svg%3E',
-            price: '500000000000000000', // 0.5 ETH
-            seller: '0x3456789012345678901234567890123456789012',
-          },
-        ];
-
-        // 실제로는 API에서 데이터를 가져와야 합니다
-        setTimeout(() => {
-          setNfts(dummyNFTs);
-          setLoading(false);
-        }, 1000);
-
-      } catch (error) {
-        console.error('NFT 로드 실패:', error);
-        setLoading(false);
-      }
+    const handleStorageChange = () => {
+      refetch();
     };
 
-    loadNFTs();
-  }, [filter]);
+    // 로컬 스토리지 변경 감지
+    window.addEventListener('storage', handleStorageChange);
+    
+    // 페이지 포커스 시 새로고침
+    window.addEventListener('focus', handleStorageChange);
 
-  const filteredNFTs = nfts; // 필터링 로직은 나중에 추가
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('focus', handleStorageChange);
+    };
+  }, [refetch]);
+
+  // 필터링 로직
+  const filteredNFTs = nfts.filter(nft => {
+    switch (filter) {
+      case 'recent':
+        return true; // 이미 최신순으로 정렬됨
+      case 'popular':
+        return true; // 추후 인기도 기준 추가 예정
+      default:
+        return true;
+    }
+  });
 
   return (
     <Container>
@@ -337,15 +310,15 @@ function Home() {
 
         <Stats>
           <StatItem>
-            <strong>{listingCounter?.toString() || '0'}</strong>
+            <strong>{nfts.length}</strong>
             <span>등록된 NFT</span>
           </StatItem>
           <StatItem>
-            <strong>100+</strong>
-            <span>활성 사용자</span>
+            <strong>{new Set(nfts.map(nft => nft.creatorId)).size}</strong>
+            <span>활성 크리에이터</span>
           </StatItem>
           <StatItem>
-            <strong>50+</strong>
+            <strong>0</strong>
             <span>완료된 거래</span>
           </StatItem>
         </Stats>
@@ -387,6 +360,25 @@ function Home() {
 
         {loading ? (
           <LoadingSpinner />
+        ) : error ? (
+          <EmptyState>
+            <h3>오류가 발생했습니다</h3>
+            <p>{error}</p>
+            <button 
+              onClick={refetch}
+              style={{
+                marginTop: '16px',
+                padding: '8px 16px',
+                background: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              다시 시도
+            </button>
+          </EmptyState>
         ) : filteredNFTs.length > 0 ? (
           <Grid>
             {filteredNFTs.map((nft) => (
@@ -397,6 +389,24 @@ function Home() {
           <EmptyState>
             <h3>등록된 NFT가 없습니다</h3>
             <p>첫 번째 NFT를 등록해보세요!</p>
+            {user && (
+              <button 
+                onClick={handleCreateClick}
+                style={{
+                  marginTop: '16px',
+                  padding: '12px 24px',
+                  background: '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  fontWeight: 'bold'
+                }}
+              >
+                NFT 등록하기
+              </button>
+            )}
           </EmptyState>
         )}
       </Section>
