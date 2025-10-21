@@ -50,20 +50,36 @@ const ImageSection = styled.div`
 const ImageContainer = styled.div`
   position: relative;
   width: 100%;
-  padding-top: 100%;
+  height: 500px; /* 고정 높이 설정 */
   background: ${({ theme }) => theme.colors.bgLight};
   border-radius: ${({ theme }) => theme.radius.lg};
   overflow: hidden;
   border: 1px solid ${({ theme }) => theme.colors.border};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  /* 반응형 디자인 */
+  @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
+    height: 400px;
+  }
+  
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    height: 300px;
+  }
 `;
 
 const Image = styled.img`
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
+  transition: opacity 0.3s ease;
+  
+  /* 이미지 로딩 중 스켈레톤 효과 */
+  &[src=""] {
+    opacity: 0;
+  }
 `;
 
 const BadgeContainer = styled.div`

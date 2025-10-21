@@ -14,29 +14,63 @@ const Card = styled.div`
   overflow: hidden;
   cursor: pointer;
   transition: ${({ theme }) => theme.transition.normal};
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* 카드 전체 높이 통일 */
 
   &:hover {
     transform: translateY(-8px);
     box-shadow: ${({ theme }) => theme.shadow.lg};
     border-color: ${({ theme }) => theme.colors.primary};
   }
+  
+  /* 모바일 최적화 */
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    min-height: 320px; /* 모바일에서 최소 높이 보장 */
+    max-height: 400px; /* 모바일에서 최대 높이 제한 */
+  }
 `;
 
 const ImageContainer = styled.div`
   position: relative;
   width: 100%;
-  padding-top: 100%; /* 1:1 비율 */
+  height: 250px; /* 고정 높이 설정 */
   background: ${({ theme }) => theme.colors.bgLight};
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  /* 반응형 디자인 */
+  @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
+    height: 200px;
+  }
+  
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    height: 200px; /* 모바일에서도 고정 높이 */
+    min-height: 200px; /* 최소 높이 보장 */
+    max-height: 200px; /* 최대 높이 제한 */
+  }
 `;
 
 const Image = styled.img`
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
+  transition: opacity 0.3s ease;
+  
+  /* 이미지 로딩 중 스켈레톤 효과 */
+  &[src=""] {
+    opacity: 0;
+  }
+  
+  /* 모바일에서 이미지 최적화 */
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    object-fit: cover;
+    object-position: center;
+    /* 모바일에서 가로/세로 이미지 모두 일관되게 표시 */
+  }
 `;
 
 const BadgeContainer = styled.div`
@@ -47,6 +81,16 @@ const BadgeContainer = styled.div`
 
 const Content = styled.div`
   padding: ${({ theme }) => theme.spacing(2)};
+  flex: 1; /* 남은 공간을 모두 차지 */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* 내용을 위아래로 분산 */
+  
+  /* 모바일 최적화 */
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    padding: ${({ theme }) => theme.spacing(1.5)};
+    min-height: 120px; /* 모바일에서 최소 높이 보장 */
+  }
 `;
 
 const Title = styled.h3`
@@ -107,7 +151,7 @@ function NFTCard({ nft }) {
 
   const handleClick = () => {
     if (isConnected) {
-      navigate(`/item/${nft.listingId || nft.tokenId}`);
+      navigate(`/item/${nft.id}`);
     } else {
       setShowWalletModal(true);
     }

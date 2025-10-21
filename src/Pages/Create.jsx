@@ -6,6 +6,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Modal from '../components/Modal';
 import { useUser } from '../contexts/UserContext';
 import { uploadOptimizedNFTImage } from '../lib/supabase';
+import { useBlockchainMint } from '../hooks/useBlockchain';
 
 const Container = styled.div`
   max-width: 800px;
@@ -321,6 +322,16 @@ function Create() {
   const { address, isConnected } = useAccount();
   const { user } = useUser();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // 블록체인 민팅 훅
+  const { 
+    mintNFT, 
+    isMinting, 
+    mintError, 
+    mintSuccess, 
+    transactionHash, 
+    isConfirmed 
+  } = useBlockchainMint();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -552,26 +563,87 @@ function Create() {
         optimization: imageResult.optimization // 최적화 정보
       };
 
-      // 로컬 스토리지에 저장
+      // 3. 블록체인 민팅 (현재 Web3.Storage 유지보수로 인해 비활성화)
+      let blockchainResult = null;
+      
+      // Web3.Storage 상태 확인 후 활성화
+      const enableBlockchain = true; // 블록체인 민팅 활성화
+      
+      if (isConnected && enableBlockchain) {
+        try {
+          console.log('⛓️ 블록체인 민팅 시작...');
+          blockchainResult = await mintNFT({
+            ...nftData,
+            imageMetadata: {
+              fileName: imageResult.fileName,
+              fileSize: imageResult.fileSize,
+              mimeType: imageResult.mimeType,
+              width: imageResult.width,
+              height: imageResult.height,
+              exifData: imageResult.optimization?.exifData,
+              originalSize: imageResult.optimization?.originalSize,
+              optimizedSize: imageResult.optimization?.optimizedSize,
+              compressionRatio: imageResult.optimization?.compressionRatio
+            }
+          });
+
+          console.log('✅ 블록체인 민팅 완료:', blockchainResult);
+        } catch (blockchainError) {
+          console.warn('⚠️ 블록체인 민팅 실패 (로컬 저장은 계속 진행):', blockchainError);
+        }
+      } else if (isConnected && !enableBlockchain) {
+        console.log('📝 블록체인 민팅 비활성화 (Web3.Storage 유지보수 중)');
+      } else if (isConnected && enableBlockchain) {
+        console.log('📝 블록체인 민팅 활성화 - 로컬 메타데이터 사용');
+      }
+
+      // 4. 로컬 스토리지에 저장
+      const finalNFTData = {
+        ...nftData,
+        blockchain: blockchainResult ? {
+          transactionHash: blockchainResult.transactionHash,
+          metadataURI: blockchainResult.metadataURI,
+          isPending: blockchainResult.isPending
+        } : null,
+        status: blockchainResult ? 'minted' : 'draft'
+      };
+
       const existingNFTs = JSON.parse(localStorage.getItem('draftNFTs') || '[]');
-      existingNFTs.push(nftData);
+      existingNFTs.push(finalNFTData);
       localStorage.setItem('draftNFTs', JSON.stringify(existingNFTs));
 
-             console.log('✅ NFT 데이터 저장 완료');
+      console.log('✅ NFT 데이터 저장 완료');
 
-             // 성공 메시지에 최적화 정보 포함
-             const compressionInfo = imageResult.optimization
-               ? ` (압축률: ${imageResult.optimization.compressionRatio}%)`
-               : '';
+      // 성공 메시지
+      const compressionInfo = imageResult.optimization
+        ? ` (압축률: ${imageResult.optimization.compressionRatio}%)`
+        : '';
+      
+      let blockchainInfo = '';
+      if (blockchainResult) {
+        if (blockchainResult.skipped) {
+          blockchainInfo = ' (로컬 저장 완료 - 블록체인 민팅은 컨트랙트 배포 후 가능)';
+        } else if (blockchainResult.isPending) {
+          blockchainInfo = ' + 블록체인 민팅 진행 중...';
+        } else {
+          blockchainInfo = ' + 블록체인 민팅 완료!';
+        }
+      } else if (isConnected && !enableBlockchain) {
+        blockchainInfo = ' (로컬 저장 완료 - 블록체인 민팅은 Web3.Storage 복구 후 가능)';
+      } else if (isConnected && enableBlockchain) {
+        blockchainInfo = ' + 블록체인 민팅 완료! (로컬 메타데이터 사용)';
+      } else {
+        blockchainInfo = ' (로컬 저장만 완료)';
+      }
 
-             alert(`NFT가 성공적으로 등록되었습니다!${compressionInfo}`);
-             handleCloseModal();
-             
-             // 홈페이지로 이동하고 새로고침 이벤트 발생
-             navigate('/');
-             
-             // 로컬 스토리지 변경 이벤트 발생 (홈페이지에서 감지)
-             window.dispatchEvent(new Event('storage'));
+      alert(`NFT가 성공적으로 등록되었습니다!${compressionInfo}${blockchainInfo}`);
+      handleCloseModal();
+      
+      // 홈페이지로 이동하고 새로고침 이벤트 발생
+      navigate('/');
+      
+      // 로컬 스토리지 변경 이벤트 발생 (홈페이지에서 감지)
+      window.dispatchEvent(new Event('storage'));
 
     } catch (error) {
       console.error('❌ NFT 등록 실패:', error);
@@ -734,8 +806,8 @@ function Create() {
             {errors.price && <ErrorMessage>{errors.price}</ErrorMessage>}
           </InputGroup>
 
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? '저장 중...' : 'NFT 등록하기'}
+          <Button type="submit" disabled={isSubmitting || isMinting}>
+            {isMinting ? '블록체인 민팅 중...' : isSubmitting ? '저장 중...' : 'NFT 등록하기'}
           </Button>
         </Form>
       </Modal>

@@ -208,9 +208,17 @@ const Grid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: ${({ theme }) => theme.spacing(3)};
+  align-items: start; /* 카드들을 상단 정렬 */
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: ${({ theme }) => theme.spacing(2)};
+  }
 
   @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
     grid-template-columns: 1fr;
+    gap: ${({ theme }) => theme.spacing(2)};
+    /* 모바일에서 카드 간격 최적화 */
   }
 `;
 
@@ -382,7 +390,7 @@ function Home() {
         ) : filteredNFTs.length > 0 ? (
           <Grid>
             {filteredNFTs.map((nft) => (
-              <NFTCard key={nft.listingId || nft.tokenId} nft={nft} />
+              <NFTCard key={nft.id} nft={nft} />
             ))}
           </Grid>
         ) : (
