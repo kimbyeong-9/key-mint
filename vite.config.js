@@ -12,8 +12,13 @@ export default defineConfig({
     hmr: {
       protocol: 'ws',
       host: 'localhost',
-      clientPort: 3001,
-      port: 3001
+      port: 3001,
+      clientPort: 3001
+    },
+    // WebSocket 연결 안정성을 위한 설정
+    watch: {
+      usePolling: false,
+      interval: 100
     }
   }
 })

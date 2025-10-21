@@ -147,7 +147,23 @@ export function UserProvider({ children }) {
 export function useUser() {
   const context = useContext(UserContext);
   if (!context) {
-    throw new Error('useUser must be used within a UserProvider');
+    console.error('❌ useUser must be used within a UserProvider');
+    // 개발 환경에서만 에러를 throw하고, 프로덕션에서는 기본값 반환
+    if (process.env.NODE_ENV === 'development') {
+      throw new Error('useUser must be used within a UserProvider');
+    }
+    // 프로덕션에서는 기본값 반환
+    return {
+      user: null,
+      userType: 'guest',
+      isLoading: false,
+      isConnected: false,
+      address: null,
+      login: () => Promise.resolve({ success: false }),
+      logout: () => {},
+      connectWallet: () => {},
+      setUser: () => {}
+    };
   }
   return context;
 }

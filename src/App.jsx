@@ -12,9 +12,11 @@ function App() {
   return (
     <ErrorBoundary>
       <UserProvider>
-        <Layout>
-          <AppRoutes />
-        </Layout>
+        <ErrorBoundary>
+          <Layout>
+            <AppRoutes />
+          </Layout>
+        </ErrorBoundary>
       </UserProvider>
     </ErrorBoundary>
   );

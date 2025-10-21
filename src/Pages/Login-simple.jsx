@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { signInWithEmail } from '../lib/supabase-simple';
+import { signInWithEmail } from '../lib/supabase';
 import { useUser } from '../contexts/UserContext';
 
 export default function LoginSimple() {

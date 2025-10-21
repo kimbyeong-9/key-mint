@@ -255,11 +255,15 @@ export async function checkUsernameAvailable(username) {
     }
 
     // RPC 함수 호출하여 실제 데이터베이스에서 사용자명 중복 확인
+    console.log('🔍 사용자명 중복 확인 시작:', username);
+    
     const { data: usernameExists, error: rpcError } = await supabase
       .rpc('check_username_exists', { p_username: username });
 
+    console.log('📊 사용자명 중복 확인 결과:', { usernameExists, rpcError });
+
     if (rpcError) {
-      console.error('사용자명 중복 확인 RPC 오류:', rpcError);
+      console.error('❌ 사용자명 중복 확인 RPC 오류:', rpcError);
       return {
         available: false,
         message: '사용자명 확인 중 오류가 발생했습니다.'
@@ -267,12 +271,14 @@ export async function checkUsernameAvailable(username) {
     }
 
     if (usernameExists) {
+      console.log('❌ 사용자명 중복됨:', username);
       return {
         available: false,
-        message: '이미 사용 중인 사용자명입니다.'
+        message: '이미 사용중입니다.'
       };
     }
 
+    console.log('사용자명 사용 가능:', username);
     return {
       available: true,
       message: '사용 가능한 사용자명입니다.'
@@ -302,11 +308,15 @@ export async function checkEmailAvailable(email) {
     }
 
     // RPC 함수 호출하여 실제 데이터베이스에서 이메일 중복 확인
+    console.log('🔍 이메일 중복 확인 시작:', email);
+    
     const { data: emailExists, error: rpcError } = await supabase
       .rpc('check_email_exists', { p_email: email });
 
+    console.log('📊 이메일 중복 확인 결과:', { emailExists, rpcError });
+
     if (rpcError) {
-      console.error('이메일 중복 확인 RPC 오류:', rpcError);
+      console.error('❌ 이메일 중복 확인 RPC 오류:', rpcError);
       return {
         available: false,
         message: '이메일 확인 중 오류가 발생했습니다.'
@@ -314,12 +324,14 @@ export async function checkEmailAvailable(email) {
     }
 
     if (emailExists) {
+      console.log('❌ 이메일 중복됨:', email);
       return {
         available: false,
-        message: '이미 사용 중인 이메일입니다.'
+        message: '이미 사용중입니다.'
       };
     }
 
+    console.log('이메일 사용 가능:', email);
     return {
       available: true,
       message: '사용 가능한 이메일입니다.'

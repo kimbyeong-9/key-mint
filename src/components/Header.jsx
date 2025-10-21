@@ -665,7 +665,21 @@ const DesktopCreateButton = styled(CreateButton)`
 
 function Header() {
   const navigate = useNavigate();
-  const { user, userType, logout } = useUser();
+  
+  // useUser 훅을 안전하게 사용
+  let user, userType, logout;
+  try {
+    const userContext = useUser();
+    user = userContext.user;
+    userType = userContext.userType;
+    logout = userContext.logout;
+  } catch (error) {
+    console.warn('⚠️ UserProvider가 설정되지 않았습니다. 기본값을 사용합니다.', error);
+    user = null;
+    userType = 'guest';
+    logout = () => {};
+  }
+  
   const { address, isConnected } = useAccount();
   const { disconnectWallet, isLoading: walletLoading, error: walletError } = useWalletConnection(user);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

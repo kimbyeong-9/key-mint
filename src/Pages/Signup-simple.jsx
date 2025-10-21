@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { signUpWithEmail } from '../lib/supabase-simple';
+import { signUpWithEmail } from '../lib/supabase';
 
 export default function SignupSimple() {
   const navigate = useNavigate();
@@ -32,9 +32,11 @@ export default function SignupSimple() {
       console.log('📝 회원가입 폼 제출:', formData);
 
       await signUpWithEmail(
-        formData.email,
-        formData.password,
-        formData.username
+        {
+          email: formData.email,
+          password: formData.password,
+          username: formData.username
+        }
       );
 
       setSuccess('✅ 회원가입 성공! 로그인 페이지로 이동합니다...');
