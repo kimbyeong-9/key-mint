@@ -277,6 +277,49 @@ export function formatFileSize(bytes) {
 }
 
 /**
+ * 파일명을 안전하게 처리하는 함수
+ * @param {string} filename - 원본 파일명
+ * @returns {string} - 안전한 파일명
+ */
+export function sanitizeFilename(filename) {
+  if (!filename) return 'untitled';
+  
+  // 파일 확장자 분리
+  const lastDotIndex = filename.lastIndexOf('.');
+  const name = lastDotIndex > 0 ? filename.substring(0, lastDotIndex) : filename;
+  const extension = lastDotIndex > 0 ? filename.substring(lastDotIndex) : '';
+  
+  // 안전한 파일명으로 변환
+  const safeName = name
+    .replace(/[^a-zA-Z0-9가-힣._-]/g, '_') // 특수문자를 언더스코어로 변경
+    .replace(/_{2,}/g, '_') // 연속된 언더스코어를 하나로
+    .replace(/^_+|_+$/g, '') // 앞뒤 언더스코어 제거
+    .substring(0, 100); // 길이 제한
+  
+  // 빈 이름인 경우 기본값 사용
+  const finalName = safeName || 'untitled';
+  
+  return finalName + extension;
+}
+
+/**
+ * 타임스탬프 기반 고유 파일명 생성
+ * @param {string} originalFilename - 원본 파일명
+ * @returns {string} - 고유한 파일명
+ */
+export function generateUniqueFilename(originalFilename) {
+  const timestamp = Date.now();
+  const sanitized = sanitizeFilename(originalFilename);
+  
+  // 확장자 분리
+  const lastDotIndex = sanitized.lastIndexOf('.');
+  const name = lastDotIndex > 0 ? sanitized.substring(0, lastDotIndex) : sanitized;
+  const extension = lastDotIndex > 0 ? sanitized.substring(lastDotIndex) : '';
+  
+  return `${timestamp}-${name}${extension}`;
+}
+
+/**
  * 이미지 파일 유효성 검사
  * @param {File} file - 검사할 파일
  * @returns {Object} - 검사 결과

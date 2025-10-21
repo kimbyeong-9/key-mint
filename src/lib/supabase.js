@@ -370,12 +370,16 @@ export async function uploadImageToStorage(file, userId) {
   }
 
   try {
-    // 파일명 생성 (사용자ID/타임스탬프-원본파일명)
-    const timestamp = Date.now();
-    const fileExtension = file.name.split('.').pop();
-    const fileName = `${userId}/${timestamp}-${file.name}`;
+    // 안전한 파일명 생성 함수 import
+    const { generateUniqueFilename } = await import('./imageUtils.js');
+    
+    // 안전한 파일명 생성
+    const safeFileName = generateUniqueFilename(file.name);
+    const fileName = `${userId}/${safeFileName}`;
 
     console.log('📤 이미지 업로드 시작:', fileName);
+    console.log('📁 원본 파일명:', file.name);
+    console.log('🔒 안전한 파일명:', safeFileName);
 
     // Supabase Storage에 파일 업로드
     const { data, error } = await supabase.storage
@@ -400,7 +404,8 @@ export async function uploadImageToStorage(file, userId) {
     return {
       path: data.path,
       url: urlData.publicUrl,
-      fileName: file.name,
+      fileName: file.name, // 원본 파일명 유지
+      safeFileName: safeFileName, // 안전한 파일명 추가
       fileSize: file.size,
       mimeType: file.type
     };
@@ -514,10 +519,15 @@ export async function uploadOptimizedNFTImage(file, options = {}) {
     let thumbnailResult = null;
     if (optimizationResult.thumbnailFile) {
       console.log('🖼️ 썸네일 업로드...');
-      const thumbnailFileName = `thumb_${uploadResult.fileName}`;
+      
+      // 안전한 썸네일 파일명 생성
+      const { generateUniqueFilename } = await import('./imageUtils.js');
+      const thumbnailSafeName = generateUniqueFilename(`thumb_${file.name}`);
+      const thumbnailPath = `${user.id}/${thumbnailSafeName}`;
+      
       const { data: thumbnailData, error: thumbnailError } = await supabase.storage
         .from('nft-images')
-        .upload(`${user.id}/thumb_${Date.now()}-${file.name}`, optimizationResult.thumbnailFile, {
+        .upload(thumbnailPath, optimizationResult.thumbnailFile, {
           cacheControl: '3600',
           upsert: false
         });
@@ -531,6 +541,10 @@ export async function uploadOptimizedNFTImage(file, options = {}) {
           path: thumbnailData.path,
           url: thumbnailUrlData.publicUrl
         };
+        
+        console.log('✅ 썸네일 업로드 성공:', thumbnailData.path);
+      } else {
+        console.warn('⚠️ 썸네일 업로드 실패:', thumbnailError);
       }
     }
 

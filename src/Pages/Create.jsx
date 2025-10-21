@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAccount } from 'wagmi';
@@ -141,6 +141,7 @@ const FileLabel = styled.label`
   border-radius: ${({ theme }) => theme.radius.md};
   cursor: pointer;
   transition: ${({ theme }) => theme.transition.fast};
+  position: relative;
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
@@ -163,6 +164,93 @@ const FileLabel = styled.label`
     font-size: ${({ theme }) => theme.font.size.sm};
     color: ${({ theme }) => theme.colors.textDark};
     margin-top: ${({ theme }) => theme.spacing(1)};
+  }
+`;
+
+const DragDropArea = styled.div.withConfig({
+  shouldForwardProp: (prop) => prop !== '$isDragOver',
+})`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: ${({ theme }) => theme.spacing(4)};
+  background: ${({ $isDragOver, theme }) => 
+    $isDragOver ? `${theme.colors.primary}15` : theme.colors.bgLight};
+  border: 2px dashed ${({ $isDragOver, theme }) => 
+    $isDragOver ? theme.colors.primary : theme.colors.border};
+  border-radius: ${({ theme }) => theme.radius.md};
+  cursor: pointer;
+  transition: ${({ theme }) => theme.transition.fast};
+  position: relative;
+  min-height: 200px;
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.primary};
+    background: ${({ theme }) => theme.colors.card};
+  }
+
+  svg {
+    width: 48px;
+    height: 48px;
+    color: ${({ $isDragOver, theme }) => 
+      $isDragOver ? theme.colors.primary : theme.colors.textSub};
+    margin-bottom: ${({ theme }) => theme.spacing(2)};
+    transition: ${({ theme }) => theme.transition.fast};
+  }
+
+  p {
+    font-size: ${({ theme }) => theme.font.size.md};
+    color: ${({ $isDragOver, theme }) => 
+      $isDragOver ? theme.colors.primary : theme.colors.textSub};
+    transition: ${({ theme }) => theme.transition.fast};
+  }
+
+  span {
+    font-size: ${({ theme }) => theme.font.size.sm};
+    color: ${({ theme }) => theme.colors.textDark};
+    margin-top: ${({ theme }) => theme.spacing(1)};
+  }
+`;
+
+const ProgressBar = styled.div`
+  width: 100%;
+  height: 4px;
+  background: ${({ theme }) => theme.colors.border};
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: ${({ theme }) => theme.spacing(2)};
+
+  &::after {
+    content: '';
+    display: block;
+    width: ${({ $progress }) => $progress}%;
+    height: 100%;
+    background: ${({ theme }) => theme.colors.primary};
+    transition: width 0.3s ease;
+  }
+`;
+
+const DragOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: ${({ theme }) => `${theme.colors.primary}20`};
+  border: 2px solid ${({ theme }) => theme.colors.primary};
+  border-radius: ${({ theme }) => theme.radius.md};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+
+  p {
+    font-size: ${({ theme }) => theme.font.size.lg};
+    font-weight: ${({ theme }) => theme.font.weight.bold};
+    color: ${({ theme }) => theme.colors.primary};
+    margin: 0;
   }
 `;
 
@@ -244,6 +332,9 @@ function Create() {
   const [preview, setPreview] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const dragDropRef = useRef(null);
 
   const handleOpenModal = () => {
     if (!isConnected) {
@@ -258,6 +349,8 @@ function Create() {
     setFormData({ name: '', description: '', price: '', file: null });
     setPreview('');
     setErrors({});
+    setIsDragOver(false);
+    setUploadProgress(0);
   };
 
   const handleChange = (e) => {
@@ -270,36 +363,116 @@ function Create() {
     }
   };
 
+  // 파일 처리 공통 함수
+  const processFile = async (file) => {
+    try {
+      // 이미지 유틸리티 함수 import
+      const { validateImageFile } = await import('../lib/imageUtils.js');
+      
+      // 파일 검증
+      const validation = validateImageFile(file);
+      if (!validation.isValid) {
+        setErrors(prev => ({ ...prev, file: validation.errors.join(', ') }));
+        return;
+      }
+
+      setFormData((prev) => ({ ...prev, file }));
+      setErrors(prev => ({ ...prev, file: '' }));
+
+      // 이미지 미리보기
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+
+    } catch (error) {
+      console.error('파일 처리 실패:', error);
+      setErrors(prev => ({ ...prev, file: '파일 처리 중 오류가 발생했습니다.' }));
+    }
+  };
+
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      try {
-        // 이미지 유틸리티 함수 import
-        const { validateImageFile } = await import('../lib/imageUtils.js');
-        
-        // 파일 검증
-        const validation = validateImageFile(file);
-        if (!validation.isValid) {
-          setErrors(prev => ({ ...prev, file: validation.errors.join(', ') }));
-          return;
-        }
-
-        setFormData((prev) => ({ ...prev, file }));
-        setErrors(prev => ({ ...prev, file: '' }));
-
-        // 이미지 미리보기
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setPreview(reader.result);
-        };
-        reader.readAsDataURL(file);
-
-      } catch (error) {
-        console.error('파일 검증 실패:', error);
-        setErrors(prev => ({ ...prev, file: '파일 검증 중 오류가 발생했습니다.' }));
-      }
+      await processFile(file);
     }
   };
+
+  // 드래그 앤 드롭 이벤트 핸들러
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    
+    if (files.length === 0) {
+      return;
+    }
+
+    // 첫 번째 파일만 처리 (나중에 다중 파일 지원 추가)
+    const file = files[0];
+    await processFile(file);
+  };
+
+  // 다중 파일 처리 (향후 확장용)
+  const handleMultipleFiles = async (files) => {
+    if (files.length === 0) return;
+    
+    // 현재는 첫 번째 파일만 처리
+    const file = files[0];
+    await processFile(file);
+    
+    // 향후 다중 파일 지원 시 여기에 로직 추가
+    console.log('다중 파일 업로드 준비 중...', files.length, '개 파일');
+  };
+
+  // 클릭 이벤트 핸들러 (모바일/데스크톱 공통)
+  const handleAreaClick = () => {
+    document.getElementById('file').click();
+  };
+
+  // 터치 이벤트를 안전하게 처리하기 위한 useEffect
+  useEffect(() => {
+    const dragDropElement = dragDropRef.current;
+    if (!dragDropElement) return;
+
+    const handleTouchStart = (e) => {
+      setIsDragOver(true);
+    };
+
+    const handleTouchEnd = (e) => {
+      setIsDragOver(false);
+    };
+
+    const handleTouchMove = (e) => {
+      // 터치 이동 중에는 드래그 상태 유지
+    };
+
+    // passive: false로 설정하여 preventDefault 사용 가능
+    dragDropElement.addEventListener('touchstart', handleTouchStart, { passive: false });
+    dragDropElement.addEventListener('touchend', handleTouchEnd, { passive: false });
+    dragDropElement.addEventListener('touchmove', handleTouchMove, { passive: false });
+
+    return () => {
+      dragDropElement.removeEventListener('touchstart', handleTouchStart);
+      dragDropElement.removeEventListener('touchend', handleTouchEnd);
+      dragDropElement.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, []);
 
   const validateForm = () => {
     const newErrors = {};
@@ -332,9 +505,21 @@ function Create() {
     }
 
     setIsSubmitting(true);
+    setUploadProgress(0);
 
     try {
       console.log('🚀 NFT 등록 시작:', formData);
+
+      // 진행률 시뮬레이션
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + 10;
+        });
+      }, 200);
 
       // 1. 최적화된 이미지를 Supabase Storage에 업로드
       const imageResult = await uploadOptimizedNFTImage(formData.file, {
@@ -345,6 +530,9 @@ function Create() {
         thumbnailQuality: 0.7,
         extractEXIF: true
       });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
 
       console.log('✅ 최적화된 이미지 업로드 완료:', imageResult);
 
@@ -448,7 +636,7 @@ function Create() {
       >
         <Form onSubmit={handleSubmit}>
           <InputGroup>
-            <Label htmlFor="file">이미지 파일</Label>
+            <Label>이미지 파일</Label>
             <FileInput
               type="file"
               id="file"
@@ -456,7 +644,20 @@ function Create() {
               onChange={handleFileChange}
               required
             />
-            <FileLabel htmlFor="file">
+            <DragDropArea
+              ref={dragDropRef}
+              $isDragOver={isDragOver}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={handleAreaClick}
+            >
+              {isDragOver && (
+                <DragOverlay>
+                  <p>이미지를 여기에 드롭하세요</p>
+                </DragOverlay>
+              )}
+              
               {preview ? (
                 <PreviewImage src={preview} alt="Preview" />
               ) : (
@@ -473,11 +674,15 @@ function Create() {
                       d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                     />
                   </svg>
-                  <p>클릭하여 이미지 선택</p>
+                  <p>이미지를 드래그하거나 클릭하여 선택</p>
                   <span>PNG, JPG, GIF, WebP (최대 10MB)</span>
                 </>
               )}
-            </FileLabel>
+              
+              {isSubmitting && (
+                <ProgressBar $progress={uploadProgress} />
+              )}
+            </DragDropArea>
             {errors.file && <ErrorMessage>{errors.file}</ErrorMessage>}
           </InputGroup>
 
