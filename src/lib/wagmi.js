@@ -1,6 +1,6 @@
 import { getDefaultConfig, connectorsForWallets } from '@rainbow-me/rainbowkit';
 import { metaMaskWallet, coinbaseWallet } from '@rainbow-me/rainbowkit/wallets';
-import { sepolia, mainnet } from 'wagmi/chains';
+import { sepolia } from 'wagmi/chains';
 import { http } from 'viem';
 import { createConfig } from 'wagmi';
 
@@ -8,8 +8,8 @@ import { createConfig } from 'wagmi';
 const rawProjectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
 const projectId = rawProjectId && rawProjectId !== 'demo_project_id_for_development' ? rawProjectId : undefined;
 
-// 허용 지갑만 등록 (MetaMask, Base Account) - projectId가 없을 때도 안전하게 생성
-const chains = [sepolia, mainnet];
+// 허용 지갑만 등록 (MetaMask, Base Account) - 개발 환경에서는 Sepolia만 사용
+const chains = [sepolia];
 const appName = 'Key Mint - NFT Marketplace';
 
 // RainbowKit이 내부에서 옵션을 주입할 수 있도록 wallet 팩토리 함수를 그대로 전달
@@ -26,10 +26,9 @@ const allowedConnectors = connectorsForWallets([
 
 // Wagmi 설정 (Project ID가 있을 때만 RainbowKit의 getDefaultConfig 사용)
 export const config = createConfig({
-  chains: [sepolia, mainnet],
+  chains: [sepolia],
   transports: {
     [sepolia.id]: http(),
-    [mainnet.id]: http(),
   },
   connectors: allowedConnectors,
   ssr: false,

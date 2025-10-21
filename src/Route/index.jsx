@@ -8,6 +8,10 @@ import Detail from "../Pages/Detail";
 import Create from "../Pages/Create";
 import Checkout from "../Pages/Checkout";
 
+// 🔥 테스트용 간단한 회원가입/로그인
+import SignupSimple from "../Pages/Signup-simple";
+import LoginSimple from "../Pages/Login-simple";
+
 /**
  * 애플리케이션 라우팅 설정
  * React Router v6 사용
@@ -17,6 +21,10 @@ function AppRoutes() {
     <Routes>
       {/* 홈 페이지 */}
       <Route path="/" element={<Home />} />
+
+      {/* 🔥 테스트용 간단한 회원가입/로그인 */}
+      <Route path="/signup-test" element={<SignupSimple />} />
+      <Route path="/login-test" element={<LoginSimple />} />
 
       {/* 인증 페이지 */}
       <Route path="/login" element={<Login />} />

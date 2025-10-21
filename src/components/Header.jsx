@@ -673,6 +673,9 @@ function Header() {
   const { openConnectModal } = useConnectModal();
   const [isOpeningWalletList, setIsOpeningWalletList] = useState(false);
 
+  // 사용자 로그인 상태 확인
+  const isLoggedIn = user && user.id;
+
   const handleCreateClick = () => {
     navigate('/create');
     setMobileMenuOpen(false);
@@ -760,14 +763,14 @@ function Header() {
           <Nav>
             {/* 데스크톱 네비게이션 */}
             <DesktopNav>
-                    {user ? (
-                      // 로그인된 상태
-                      <>
-                        <UserGreeting onClick={toggleUserInfoModal} data-user-greeting>
-                          <GreetingText>어서오세요</GreetingText>
-                          <Nickname>{user.username}</Nickname>
-                          <GreetingText>님</GreetingText>
-                        </UserGreeting>
+              {isLoggedIn ? (
+                // 로그인된 상태
+                <>
+                  <UserGreeting onClick={toggleUserInfoModal} data-user-greeting>
+                    <GreetingText>어서오세요</GreetingText>
+                    <Nickname>{user.username}</Nickname>
+                    <GreetingText>님</GreetingText>
+                  </UserGreeting>
                   <DesktopCreateButton onClick={handleCreateClick}>
                     NFT 등록
                   </DesktopCreateButton>
@@ -785,7 +788,7 @@ function Header() {
             </DesktopNav>
 
             {/* 모바일 햄버거 버튼 - 로그인된 사용자만 표시 */}
-            {user && (
+            {isLoggedIn && (
               <MobileMenuButton
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-label="메뉴"
@@ -796,8 +799,8 @@ function Header() {
           </Nav>
 
           {/* 모바일 드롭다운 메뉴 - 로그인된 사용자만 */}
-                 {user && (
-                   <MobileMenu $isOpen={mobileMenuOpen}>
+          {isLoggedIn && (
+            <MobileMenu $isOpen={mobileMenuOpen}>
                      <UserGreeting onClick={toggleUserInfoModal} data-user-greeting>
                        <GreetingText>어서오세요</GreetingText>
                        <Nickname>{user.username}</Nickname>
@@ -835,7 +838,7 @@ function Header() {
       </HeaderContainer>
 
       {/* 사용자 정보 모달 - HeaderContainer 밖에서 렌더링 */}
-      {showUserInfoModal && user && (
+      {showUserInfoModal && isLoggedIn && (
         <ModalOverlay
           onClick={() => {
             console.log('ModalOverlay clicked - closing modal');

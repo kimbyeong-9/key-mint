@@ -176,11 +176,6 @@ function Signup() {
     if (errors[name]) {
       validateField(name, value);
     }
-
-    // 비밀번호가 변경되면 비밀번호 확인도 재검증
-    if (name === 'password' && formData.confirmPassword) {
-      validateField('confirmPassword', formData.confirmPassword);
-    }
   };
 
   // 사용자명 중복 확인
@@ -297,50 +292,21 @@ function Signup() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 전체 폼 유효성 검사 (동기적으로 실행)
-    const newErrors = {};
-    
-    // 사용자명 검증
-    if (!formData.username) {
-      newErrors.username = '사용자명을 입력해주세요.';
-    } else if (formData.username.length < 2) {
-      newErrors.username = '사용자명은 2자 이상이어야 합니다.';
-    } else if (formData.username.length > 20) {
-      newErrors.username = '사용자명은 20자 이하여야 합니다.';
-    } else if (!/^[a-zA-Z0-9가-힣_]+$/.test(formData.username)) {
-      newErrors.username = '사용자명은 영문, 한글, 숫자, 언더스코어만 사용 가능합니다.';
-    }
-
-    // 이메일 검증
-    if (!formData.email) {
-      newErrors.email = '이메일을 입력해주세요.';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = '올바른 이메일 형식을 입력해주세요.';
-    }
-
-    // 비밀번호 검증
-    if (!formData.password) {
-      newErrors.password = '비밀번호를 입력해주세요.';
-    } else if (formData.password.length < 8) {
-      newErrors.password = '비밀번호는 8자 이상이어야 합니다.';
-    } else if (!/(?=.*[a-zA-Z])(?=.*\d)/.test(formData.password)) {
-      newErrors.password = '비밀번호는 영문과 숫자를 포함해야 합니다.';
-    }
-
-    // 비밀번호 확인 검증
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = '비밀번호 확인을 입력해주세요.';
-    } else if (formData.confirmPassword !== formData.password) {
-      newErrors.confirmPassword = '비밀번호가 일치하지 않습니다.';
-    }
-
-    // 에러 상태 업데이트
-    setErrors(newErrors);
+    // 전체 폼 유효성 검사
+    Object.keys(formData).forEach(field => {
+      validateField(field, formData[field]);
+    });
 
     // 에러가 있으면 제출 중단
-    if (Object.keys(newErrors).length > 0) {
+    if (Object.keys(errors).length > 0) {
       return;
     }
+
+    // 중복 확인 여부 체크 (선택사항)
+    // if (!usernameChecked || !emailChecked) {
+    //   setError('사용자명과 이메일 중복 확인을 해주세요.');
+    //   return;
+    // }
 
     try {
       setLoading(true);

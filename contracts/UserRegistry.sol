@@ -1,103 +1,113 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.19;
 
 /**
  * @title UserRegistry
- * @dev 사용자 등록 컨트랙트 - 블록체인에 사용자 정보 저장
- * @notice 프라이버시 보호를 위해 해시값만 저장
+ * @dev 사용자 데이터를 블록체인에 안전하게 저장하는 스마트 컨트랙트
+ * @notice 이메일은 해시값으로 저장되어 개인정보를 보호합니다
  */
 contract UserRegistry {
-    // 사용자 프로필 구조체
-    struct UserProfile {
-        bytes32 usernameHash;  // 사용자명 해시 (프라이버시 보호)
-        uint256 createdAt;     // 등록 시간
-        bool exists;           // 등록 여부
+    // 사용자 정보 구조체
+    struct User {
+        string username;
+        bytes32 emailHash;      // 이메일 해시 (평문 저장 X)
+        address walletAddress;
+        uint256 timestamp;
+        bool exists;
     }
-
-    // 상태 변수
-    mapping(address => UserProfile) public profiles;
-    uint256 public totalUsers;
-
-    // 이벤트
-    event Registered(
-        address indexed user,
-        bytes32 usernameHash,
+    
+    // 이벤트 정의
+    event UserRegistered(
+        address indexed walletAddress,
+        string username,
+        bytes32 emailHash,      // 이메일 해시값만 저장
         uint256 timestamp
     );
-
-    event ProfileUpdated(
-        address indexed user,
-        bytes32 newUsernameHash,
-        uint256 timestamp
-    );
-
-    // 에러
-    error AlreadyRegistered();
-    error NotRegistered();
-    error InvalidUsernameHash();
-
+    
+    // 지갑 주소로 사용자 정보 매핑
+    mapping(address => User) public users;
+    
+    // 등록된 사용자 주소 목록
+    address[] public registeredUsers;
+    
+    // 소유자 주소
+    address public owner;
+    
+    // 생성자
+    constructor() {
+        owner = msg.sender;
+    }
+    
     /**
-     * @dev 사용자 등록
-     * @param usernameHash 사용자명 해시값 (keccak256)
+     * @dev 사용자 등록 함수 (보안 강화)
+     * @param _username 사용자명
+     * @param _emailHash 이메일 해시값 (keccak256)
      */
-    function register(bytes32 usernameHash) external {
-        if (profiles[msg.sender].exists) {
-            revert AlreadyRegistered();
-        }
+    function registerUser(
+        string memory _username,
+        bytes32 _emailHash
+    ) public {
+        // 이미 등록된 사용자인지 확인
+        require(!users[msg.sender].exists, "User already registered");
 
-        if (usernameHash == bytes32(0)) {
-            revert InvalidUsernameHash();
-        }
+        // 입력 검증
+        require(bytes(_username).length > 0, "Username cannot be empty");
+        require(bytes(_username).length <= 50, "Username too long");
+        require(_emailHash != bytes32(0), "Email hash cannot be empty");
 
-        profiles[msg.sender] = UserProfile({
-            usernameHash: usernameHash,
-            createdAt: block.timestamp,
+        // 사용자 정보 저장 (이메일은 해시값으로 저장)
+        users[msg.sender] = User({
+            username: _username,
+            emailHash: _emailHash,
+            walletAddress: msg.sender,
+            timestamp: block.timestamp,
             exists: true
         });
 
-        totalUsers++;
+        // 등록된 사용자 목록에 추가
+        registeredUsers.push(msg.sender);
 
-        emit Registered(msg.sender, usernameHash, block.timestamp);
+        // 이벤트 발생
+        emit UserRegistered(
+            msg.sender,
+            _username,
+            _emailHash,
+            block.timestamp
+        );
     }
-
+    
     /**
-     * @dev 프로필 업데이트
-     * @param newUsernameHash 새로운 사용자명 해시값
+     * @dev 사용자 정보 조회
+     * @param _walletAddress 지갑 주소
+     * @return 사용자 정보
      */
-    function updateProfile(bytes32 newUsernameHash) external {
-        if (!profiles[msg.sender].exists) {
-            revert NotRegistered();
-        }
-
-        if (newUsernameHash == bytes32(0)) {
-            revert InvalidUsernameHash();
-        }
-
-        profiles[msg.sender].usernameHash = newUsernameHash;
-
-        emit ProfileUpdated(msg.sender, newUsernameHash, block.timestamp);
+    function getUser(address _walletAddress) public view returns (User memory) {
+        require(users[_walletAddress].exists, "User not found");
+        return users[_walletAddress];
     }
-
+    
     /**
-     * @dev 사용자 등록 여부 확인
-     * @param user 확인할 사용자 주소
-     * @return 등록 여부
+     * @dev 등록된 사용자 수 조회
+     * @return 등록된 사용자 수
      */
-    function isRegistered(address user) external view returns (bool) {
-        return profiles[user].exists;
+    function getUserCount() public view returns (uint256) {
+        return registeredUsers.length;
     }
-
+    
     /**
-     * @dev 사용자 프로필 조회
-     * @param user 조회할 사용자 주소
-     * @return usernameHash 사용자명 해시
-     * @return createdAt 등록 시간
+     * @dev 모든 등록된 사용자 주소 조회
+     * @return 등록된 사용자 주소 배열
      */
-    function getProfile(address user) external view returns (
-        bytes32 usernameHash,
-        uint256 createdAt
-    ) {
-        UserProfile memory profile = profiles[user];
-        return (profile.usernameHash, profile.createdAt);
+    function getAllUsers() public view returns (address[] memory) {
+        return registeredUsers;
+    }
+    
+    /**
+     * @dev 사용자 존재 여부 확인
+     * @param _walletAddress 지갑 주소
+     * @return 사용자 존재 여부
+     */
+    function isUserRegistered(address _walletAddress) public view returns (bool) {
+        return users[_walletAddress].exists;
     }
 }

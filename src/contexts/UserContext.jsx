@@ -25,7 +25,8 @@ export function UserProvider({ children }) {
             const userData = {
               id: session.user.id,
               email: session.user.email,
-              username: session.user.user_metadata?.username || 'Unknown',
+              username: session.user.user_metadata?.username || session.user.user_metadata?.display_name || 'Unknown',
+              display_name: session.user.user_metadata?.display_name || session.user.user_metadata?.username || session.user.user_metadata?.full_name || 'Unknown',
               address: session.user.user_metadata?.address || null,
               wallet_address: session.user.user_metadata?.wallet_address || null,
               is_web3_user: session.user.user_metadata?.is_web3_user || false,
@@ -72,11 +73,11 @@ export function UserProvider({ children }) {
   }, [user, isConnected, address]);
 
   // 사용자 로그인 (Auth 상태는 자동으로 감지됨)
-  const login = async (email, password) => {
+  const login = async (email) => {
     setIsLoading(true);
     try {
       console.log('🔍 UserContext 로그인 시도:', { email });
-      
+
       // Auth 상태는 onAuthStateChange에서 자동으로 처리됨
       // 여기서는 성공 응답만 반환
       return { success: true, user: user };
@@ -89,10 +90,26 @@ export function UserProvider({ children }) {
   };
 
   // 사용자 로그아웃
-  const logout = () => {
-    setUser(null);
-    setUserType('guest');
-    console.log('👋 사용자 로그아웃됨');
+  const logout = async () => {
+    try {
+      // Supabase Auth에서 실제 로그아웃 수행
+      if (typeof window !== 'undefined' && window.supabase) {
+        const { error } = await window.supabase.auth.signOut();
+        if (error) {
+          console.error('❌ Supabase 로그아웃 오류:', error);
+        }
+      }
+      
+      // 로컬 상태 초기화
+      setUser(null);
+      setUserType('guest');
+      console.log('👋 사용자 로그아웃됨');
+    } catch (error) {
+      console.error('❌ 로그아웃 실패:', error);
+      // 오류가 발생해도 로컬 상태는 초기화
+      setUser(null);
+      setUserType('guest');
+    }
   };
 
   // 지갑 연결 시 사용자 정보 업데이트

@@ -13,11 +13,9 @@ console.log('  Key 앞 20자:', supabaseAnonKey?.substring(0, 20));
 console.log('  모든 환경 변수:', import.meta.env);
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  const errorMessage = 'Supabase 환경 변수가 설정되지 않았습니다!';
-  console.error('❌', errorMessage);
+  console.error('❌ Supabase 환경 변수가 설정되지 않았습니다!');
   console.error('VITE_SUPABASE_URL:', supabaseUrl);
   console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? '있음' : '없음');
-  throw new Error(errorMessage);
 }
 
 // Supabase 클라이언트 생성
@@ -58,7 +56,6 @@ export async function signUpWithEmail(userData, metadata = {}) {
 
   const username = metadata.username || userData.username;
 
-  // 1. Supabase Auth 회원가입
   const { data, error } = await supabase.auth.signUp({
     email: userData.email,
     password: userData.password,
@@ -74,56 +71,14 @@ export async function signUpWithEmail(userData, metadata = {}) {
   });
 
   if (error) {
-    console.error('회원가입 에러:', error);
-    
-    if (error.message.includes('User already registered') || 
-        error.message.includes('already registered') ||
-        error.message.includes('already exists')) {
+    if (error.message.includes('User already registered')) {
       throw new Error('이미 사용 중인 이메일입니다.');
     }
-    
-    if (error.message.includes('Password should be at least')) {
-      throw new Error('비밀번호는 6자 이상이어야 합니다.');
-    }
-    
-    if (error.message.includes('Invalid email')) {
-      throw new Error('올바른 이메일 형식을 입력해주세요.');
-    }
-    
-    if (error.message.includes('Signup is disabled')) {
-      throw new Error('현재 회원가입이 비활성화되어 있습니다.');
-    }
-    
-    // 기타 에러는 원본 메시지 사용
-    throw new Error(error.message || '회원가입 중 오류가 발생했습니다.');
+    throw error;
   }
 
   if (!data.user) {
     throw new Error('회원가입에 실패했습니다.');
-  }
-
-  // 2. user_profiles 테이블에 프로필 데이터 생성
-  try {
-    const { error: profileError } = await supabase
-      .from('user_profiles')
-      .insert({
-        id: data.user.id,
-        display_name: username,
-        full_name: username,
-        bio: null,
-        avatar_url: null
-      });
-
-    if (profileError) {
-      console.error('프로필 생성 실패:', profileError);
-      // 프로필 생성 실패해도 회원가입은 성공으로 처리
-      // (auth.users에는 데이터가 있으므로)
-    } else {
-      console.log('✅ 사용자 프로필 생성 완료');
-    }
-  } catch (profileError) {
-    console.error('프로필 생성 중 오류:', profileError);
-    // 프로필 생성 실패해도 회원가입은 성공으로 처리
   }
 
   console.log('회원가입 성공:', data.user.email);
@@ -229,7 +184,7 @@ export async function updateUserMetadata(updates) {
 
 /**
  * 사용자명 중복 확인
- * RPC 함수를 사용하여 실제 데이터베이스에서 중복 확인
+ * 형식 검증 (실제 중복은 회원가입 시 확인됨)
  */
 export async function checkUsernameAvailable(username) {
   try {
@@ -255,28 +210,11 @@ export async function checkUsernameAvailable(username) {
       };
     }
 
-    // RPC 함수 호출하여 실제 데이터베이스에서 사용자명 중복 확인
-    const { data: usernameExists, error: rpcError } = await supabase
-      .rpc('check_username_exists', { p_username: username });
-
-    if (rpcError) {
-      console.error('사용자명 중복 확인 RPC 오류:', rpcError);
-      return {
-        available: false,
-        message: '사용자명 확인 중 오류가 발생했습니다.'
-      };
-    }
-
-    if (usernameExists) {
-      return {
-        available: false,
-        message: '이미 사용 중인 사용자명입니다.'
-      };
-    }
-
+    // 형식이 올바르면 사용 가능으로 표시
+    // 실제 중복은 회원가입 시 Supabase에서 확인됨
     return {
       available: true,
-      message: '사용 가능한 사용자명입니다.'
+      message: '✅ 사용 가능한 형식입니다.'
     };
 
   } catch (error) {
@@ -290,7 +228,7 @@ export async function checkUsernameAvailable(username) {
 
 /**
  * 이메일 중복 확인
- * RPC 함수를 사용하여 실제 데이터베이스에서 중복 확인
+ * 형식 검증 (실제 중복은 회원가입 시 확인됨)
  */
 export async function checkEmailAvailable(email) {
   try {
@@ -302,28 +240,11 @@ export async function checkEmailAvailable(email) {
       };
     }
 
-    // RPC 함수 호출하여 실제 데이터베이스에서 이메일 중복 확인
-    const { data: emailExists, error: rpcError } = await supabase
-      .rpc('check_email_exists', { p_email: email });
-
-    if (rpcError) {
-      console.error('이메일 중복 확인 RPC 오류:', rpcError);
-      return {
-        available: false,
-        message: '이메일 확인 중 오류가 발생했습니다.'
-      };
-    }
-
-    if (emailExists) {
-      return {
-        available: false,
-        message: '이미 사용 중인 이메일입니다.'
-      };
-    }
-
+    // 형식이 올바르면 사용 가능으로 표시
+    // 실제 중복은 회원가입 시 Supabase에서 확인됨
     return {
       available: true,
-      message: '사용 가능한 이메일입니다.'
+      message: '✅ 사용 가능한 형식입니다.'
     };
 
   } catch (error) {

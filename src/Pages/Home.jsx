@@ -6,6 +6,8 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import NFTCard from '../components/NFTCard';
 import { useUser } from '../contexts/UserContext';
 import { useListingCounter } from '../hooks/useMarket';
+// import { matchUserWithWallet, getUserByWalletAddress } from '../lib/supabase';
+import { initWeb3, getCurrentAccount, checkNetwork } from '../lib/web3';
 
 const Container = styled.div`
   max-width: 1280px;
@@ -62,6 +64,83 @@ const HeroSubtitle = styled.p`
   max-width: 600px;
   margin: 0 auto ${({ theme }) => theme.spacing(4)};
   line-height: 1.6;
+`;
+
+const WalletSection = styled.div`
+  background: ${({ theme }) => theme.colors.surface};
+  border: 1px solid ${({ theme }) => theme.colors.border};
+  border-radius: ${({ theme }) => theme.radius.lg};
+  padding: ${({ theme }) => theme.spacing(6)};
+  margin-bottom: ${({ theme }) => theme.spacing(6)};
+  text-align: center;
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
+    padding: ${({ theme }) => theme.spacing(4)};
+    margin-bottom: ${({ theme }) => theme.spacing(4)};
+  }
+`;
+
+const WalletTitle = styled.h2`
+  font-size: ${({ theme }) => theme.font.size.xl};
+  font-weight: ${({ theme }) => theme.font.weight.bold};
+  color: ${({ theme }) => theme.colors.text};
+  margin-bottom: ${({ theme }) => theme.spacing(2)};
+`;
+
+const WalletDescription = styled.p`
+  font-size: ${({ theme }) => theme.font.size.base};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  margin-bottom: ${({ theme }) => theme.spacing(4)};
+  line-height: 1.6;
+`;
+
+const WalletStatus = styled.div`
+  padding: ${({ theme }) => theme.spacing(3)};
+  border-radius: ${({ theme }) => theme.radius.md};
+  margin-bottom: ${({ theme }) => theme.spacing(4)};
+  font-size: ${({ theme }) => theme.font.size.sm};
+  
+  ${({ type }) => {
+    switch (type) {
+      case 'success':
+        return `
+          background: ${({ theme }) => `${theme.colors.success}15`};
+          border: 1px solid ${({ theme }) => theme.colors.success};
+          color: ${({ theme }) => theme.colors.success};
+        `;
+      case 'error':
+        return `
+          background: ${({ theme }) => `${theme.colors.error}15`};
+          border: 1px solid ${({ theme }) => theme.colors.error};
+          color: ${({ theme }) => theme.colors.error};
+        `;
+      case 'warning':
+        return `
+          background: ${({ theme }) => `${theme.colors.warning}15`};
+          border: 1px solid ${({ theme }) => theme.colors.warning};
+          color: ${({ theme }) => theme.colors.warning};
+        `;
+      default:
+        return `
+          background: ${({ theme }) => `${theme.colors.primary}15`};
+          border: 1px solid ${({ theme }) => theme.colors.primary};
+          color: ${({ theme }) => theme.colors.primary};
+        `;
+    }
+  }}
+`;
+
+const ConnectButtonWrapper = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing(3)};
+  flex-wrap: wrap;
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    flex-direction: column;
+    gap: ${({ theme }) => theme.spacing(2)};
+  }
 `;
 
 const Stats = styled.div`
@@ -259,16 +338,84 @@ const LoadingSpinner = styled.div`
 
 function Home() {
   const navigate = useNavigate();
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const { user } = useUser();
   const [nfts, setNfts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, recent, popular
   const { listingCounter } = useListingCounter();
+  
+  // 지갑 연결 상태 관리
+  const [walletStatus, setWalletStatus] = useState({
+    type: 'info',
+    message: '지갑을 연결하여 NFT 기능을 사용하세요.',
+    isMatched: false
+  });
+  const [isWalletMatching, setIsWalletMatching] = useState(false);
 
   const handleCreateClick = () => {
     navigate('/create');
   };
+
+  // 지갑 연결 시 사용자 매칭 처리
+  const handleWalletConnection = async (walletAddress) => {
+    if (!walletAddress || !user) {
+      setWalletStatus({
+        type: 'warning',
+        message: '로그인이 필요합니다. 먼저 로그인해주세요.',
+        isMatched: false
+      });
+      return;
+    }
+
+    setIsWalletMatching(true);
+    setWalletStatus({
+      type: 'info',
+      message: '지갑 연결을 확인하고 있습니다...',
+      isMatched: false
+    });
+
+    try {
+      // Web3 초기화
+      await initWeb3();
+
+      // 네트워크 확인
+      await checkNetwork();
+
+      // 지갑 연결 성공
+      setWalletStatus({
+        type: 'success',
+        message: '지갑이 성공적으로 연결되었습니다.',
+        isMatched: true
+      });
+
+      // TODO: 나중에 지갑-사용자 매칭 기능 구현
+      // const matchResult = await matchUserWithWallet(walletAddress, user);
+
+    } catch (error) {
+      console.error('❌ 지갑 연결 처리 실패:', error);
+      setWalletStatus({
+        type: 'error',
+        message: '지갑 연결 중 오류가 발생했습니다.',
+        isMatched: false
+      });
+    } finally {
+      setIsWalletMatching(false);
+    }
+  };
+
+  // 지갑 연결 상태 변경 감지
+  useEffect(() => {
+    if (isConnected && address && user) {
+      handleWalletConnection(address);
+    } else if (!isConnected) {
+      setWalletStatus({
+        type: 'info',
+        message: '지갑을 연결하여 NFT 기능을 사용하세요.',
+        isMatched: false
+      });
+    }
+  }, [isConnected, address, user]);
 
   // NFT 목록 로드
   useEffect(() => {
@@ -352,6 +499,27 @@ function Home() {
           </StatItem>
         </Stats>
       </Hero>
+
+      {/* 지갑 연결 섹션 */}
+      {user && (
+        <WalletSection>
+          <WalletTitle>지갑 연결</WalletTitle>
+          <WalletDescription>
+            지갑을 연결하여 NFT 생성, 구매, 판매 등의 기능을 사용하세요.
+          </WalletDescription>
+          
+          <WalletStatus type={walletStatus.type}>
+            {isWalletMatching ? '⏳ ' : ''}{walletStatus.message}
+          </WalletStatus>
+          
+          <ConnectButtonWrapper>
+            <ConnectButton />
+            {isWalletMatching && (
+              <LoadingSpinner style={{ padding: '8px' }} />
+            )}
+          </ConnectButtonWrapper>
+        </WalletSection>
+      )}
 
 
       <Section>
