@@ -102,16 +102,15 @@ export async function signUpWithEmail(userData, metadata = {}) {
     throw new Error('회원가입에 실패했습니다.');
   }
 
-  // 2. user_profiles 테이블에 프로필 데이터 생성
+  // 2. user_profiles 테이블에 프로필 데이터 생성 (RPC 함수 사용)
   try {
     const { error: profileError } = await supabase
-      .from('user_profiles')
-      .insert({
-        id: data.user.id,
-        display_name: username,
-        full_name: username,
-        bio: null,
-        avatar_url: null
+      .rpc('create_user_profile', {
+        p_user_id: data.user.id,
+        p_display_name: username,
+        p_full_name: username,
+        p_bio: null,
+        p_avatar_url: null
       });
 
     if (profileError) {
