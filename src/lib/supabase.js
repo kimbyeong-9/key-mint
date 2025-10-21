@@ -102,7 +102,22 @@ export async function signUpWithEmail(userData, metadata = {}) {
     throw new Error('회원가입에 실패했습니다.');
   }
 
-  // 2. user_profiles 테이블에 프로필 데이터 생성 (RPC 함수 사용)
+  // 2. 이메일 자동 확인 처리 (개발 환경용)
+  try {
+    const { error: confirmError } = await supabase.auth.admin.updateUserById(data.user.id, {
+      email_confirm: true
+    });
+    
+    if (confirmError) {
+      console.warn('이메일 자동 확인 실패 (무시 가능):', confirmError);
+    } else {
+      console.log('✅ 이메일 자동 확인 완료');
+    }
+  } catch (confirmError) {
+    console.warn('이메일 자동 확인 중 오류 (무시 가능):', confirmError);
+  }
+
+  // 3. user_profiles 테이블에 프로필 데이터 생성 (RPC 함수 사용)
   try {
     const { error: profileError } = await supabase
       .rpc('create_user_profile', {
