@@ -5,6 +5,7 @@ import { useAccount } from 'wagmi';
 import { ConnectButton, useConnectModal } from '@rainbow-me/rainbowkit';
 import { useUser } from '../contexts/UserContext';
 import { useWalletConnection } from '../hooks/useWalletConnection';
+import bitcoinWalletIcon from '../images/bitcoin-wallet.png';
 
 const HeaderContainer = styled.header`
   width: 100%;
@@ -125,6 +126,40 @@ const Nickname = styled.span`
 
   @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
     font-size: ${({ theme }) => theme.font.size.md};
+  }
+`;
+
+const WalletButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: ${({ theme }) => theme.spacing(1)};
+  border-radius: ${({ theme }) => theme.radius.md};
+  transition: ${({ theme }) => theme.transition.normal};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+
+  img {
+    width: 24px;
+    height: 24px;
+    filter: brightness(0.8);
+    transition: ${({ theme }) => theme.transition.normal};
+  }
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.card};
+    transform: scale(1.05);
+    
+    img {
+      filter: brightness(1.2) saturate(1.2);
+    }
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 `;
 
@@ -374,94 +409,6 @@ const WalletConnectButtons = styled.div`
   width: 100%;
 `;
 
-const WalletButton = styled.button`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: ${({ theme }) => theme.colors.card};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  padding: 12px 16px;
-  border-radius: 8px;
-  color: ${({ theme }) => theme.colors.text};
-  cursor: pointer;
-  transition: ${({ theme }) => theme.transition.normal};
-  font-size: 14px;
-  font-weight: 500;
-  flex: 1;
-  min-width: 120px;
-
-  &:hover {
-    background: ${({ theme }) => theme.colors.bgLight};
-    border-color: ${({ theme }) => theme.colors.primary};
-  }
-
-  &:active {
-    transform: translateY(1px);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
-
-const WalletIcon = styled.span`
-  font-size: 18px;
-`;
-
-const WalletConnectButton = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: ${({ theme }) => theme.colors.card};
-  border: 1px solid ${({ theme }) => theme.colors.border};
-  padding: 12px 16px;
-  border-radius: 8px;
-  color: ${({ theme }) => theme.colors.text};
-  cursor: pointer;
-  transition: ${({ theme }) => theme.transition.normal};
-  font-size: 14px;
-  font-weight: 500;
-  width: 100%;
-  margin-bottom: 8px;
-
-  &:hover {
-    background: ${({ theme }) => theme.colors.bgLight};
-    border-color: ${({ theme }) => theme.colors.primary};
-  }
-
-  &:active {
-    transform: translateY(1px);
-  }
-`;
-
-// 상태 박스 오른쪽에 작게 놓일 해제 버튼 배치용 래퍼
-const WalletStatusWrapper = styled.div`
-  position: relative;
-  width: 100%;
-`;
-
-const DisconnectInlineButton = styled.button`
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: ${({ theme }) => theme.colors.textSub};
-  font-size: 13px;
-  cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 6px;
-  transition: ${({ theme }) => theme.transition.fast};
-
-  &:hover {
-    color: ${({ theme }) => theme.colors.text};
-    background: ${({ theme }) => theme.colors.bgLight};
-  }
-`;
-
 // 지갑 연결 모달 스타일
 const WalletModalOverlay = styled.div`
   position: fixed;
@@ -684,8 +631,8 @@ function Header() {
   const { disconnectWallet, isLoading: walletLoading, error: walletError } = useWalletConnection(user);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showUserInfoModal, setShowUserInfoModal] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const { openConnectModal } = useConnectModal();
-  const [isOpeningWalletList, setIsOpeningWalletList] = useState(false);
 
   // 사용자 로그인 상태 확인
   const isLoggedIn = user && user.id;
@@ -703,16 +650,10 @@ function Header() {
     setShowUserInfoModal(!showUserInfoModal);
   };
 
-  const openWalletList = async () => {
-    if (isOpeningWalletList) return;
-    try {
-      setIsOpeningWalletList(true);
-      if (openConnectModal) await openConnectModal();
-    } finally {
-      setIsOpeningWalletList(false);
-      setMobileMenuOpen(false);
-    }
+  const toggleWalletModal = () => {
+    setShowWalletModal(!showWalletModal);
   };
+
 
   // 지갑 연결 함수 (RainbowKit의 ConnectButton을 사용)
   const connectWallet = async (walletType) => {
@@ -750,10 +691,11 @@ function Header() {
     const handleEscKey = (event) => {
       if (event.key === 'Escape') {
         if (showUserInfoModal) setShowUserInfoModal(false);
+        if (showWalletModal) setShowWalletModal(false);
       }
     };
 
-    if (showUserInfoModal) {
+    if (showUserInfoModal || showWalletModal) {
       document.addEventListener('keydown', handleEscKey);
       // 모달이 열릴 때 body 스크롤 방지
       document.body.style.overflow = 'hidden';
@@ -766,7 +708,7 @@ function Header() {
       document.removeEventListener('keydown', handleEscKey);
       document.body.style.overflow = 'unset';
     };
-  }, [showUserInfoModal]);
+  }, [showUserInfoModal, showWalletModal]);
 
   return (
     <>
@@ -801,6 +743,17 @@ function Header() {
               )}
             </DesktopNav>
 
+            {/* 지갑 버튼 - 로그인된 사용자만 표시 */}
+            {isLoggedIn && (
+              <WalletButton
+                onClick={toggleWalletModal}
+                aria-label="지갑 연결"
+                title="지갑 연결"
+              >
+                <img src={bitcoinWalletIcon} alt="지갑 연결" />
+              </WalletButton>
+            )}
+
             {/* 모바일 햄버거 버튼 - 로그인된 사용자만 표시 */}
             {isLoggedIn && (
               <MobileMenuButton
@@ -820,24 +773,6 @@ function Header() {
                        <Nickname>{user.username}</Nickname>
                        <GreetingText>님</GreetingText>
                      </UserGreeting>
-                     
-                    {/* 지갑 연결/해제 영역 */}
-                    {isConnected ? (
-                      <WalletStatusWrapper>
-                        <WalletConnectButton disabled>
-                          <WalletIcon>🔗</WalletIcon>
-                          {`지갑 연결됨 (${address?.slice(0, 6)}...)`}
-                        </WalletConnectButton>
-                        <DisconnectInlineButton onClick={disconnectWallet} disabled={walletLoading}>
-                          {walletLoading ? '해제 중…' : '연결 해제'}
-                        </DisconnectInlineButton>
-                      </WalletStatusWrapper>
-                    ) : (
-                      <WalletConnectButton onClick={openWalletList} disabled={isOpeningWalletList}>
-                        <WalletIcon>🔗</WalletIcon>
-                        {isOpeningWalletList ? '열는 중...' : '지갑 연결'}
-                      </WalletConnectButton>
-                    )}
                      
               <CreateButton onClick={() => { handleCreateClick(); closeMobileMenu(); }}>
                 NFT 등록
@@ -899,7 +834,41 @@ function Header() {
       </ModalOverlay>
     )}
 
-      {/* 커스텀 지갑 모달 제거: RainbowKit 모달만 사용 */}
+      {/* 지갑 연결 모달 */}
+      {showWalletModal && isLoggedIn && (
+        <WalletModalOverlay
+          onClick={() => {
+            console.log('WalletModalOverlay clicked - closing modal');
+            setShowWalletModal(false);
+          }}
+        >
+          <WalletModalContent 
+            data-wallet-modal-content
+            onClick={(e) => {
+              console.log('WalletModalContent clicked - preventing close');
+              e.stopPropagation();
+            }}
+          >
+            <WalletModalCloseButton onClick={toggleWalletModal}>✕</WalletModalCloseButton>
+            <WalletModalTitle>지갑 연결</WalletModalTitle>
+            
+            {isConnected ? (
+              <ConnectedWalletInfo>
+                <WalletAddressText>
+                  {address?.slice(0, 6)}...{address?.slice(-4)}
+                </WalletAddressText>
+                <DisconnectButton onClick={disconnectWallet} disabled={walletLoading}>
+                  {walletLoading ? '해제 중...' : '연결 해제'}
+                </DisconnectButton>
+              </ConnectedWalletInfo>
+            ) : (
+              <WalletConnectButtons>
+                <ConnectButton />
+              </WalletConnectButtons>
+            )}
+          </WalletModalContent>
+        </WalletModalOverlay>
+      )}
     </>
   );
 }
