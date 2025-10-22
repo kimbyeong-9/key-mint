@@ -6,6 +6,7 @@ import { useBuy, useListing, useFeePercent } from '../hooks/useMarket';
 import { useTokenURI } from '../hooks/useNFT';
 import { formatEther } from '../lib/format';
 import { fetchMetadata, ipfsToHttp } from '../lib/ipfs';
+import { convertETHToKRW } from '../lib/tossPayments';
 
 const Container = styled.div`
   max-width: 800px;
@@ -96,6 +97,15 @@ const PriceLabel = styled.span``;
 
 const PriceValue = styled.span`
   color: ${({ theme }) => theme.colors.primary};
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+`;
+
+const PriceSubValue = styled.span`
+  font-size: ${({ theme }) => theme.font.size.sm};
+  color: ${({ theme }) => theme.colors.textSub};
+  margin-top: 2px;
 `;
 
 const InfoBox = styled.div`
@@ -192,6 +202,7 @@ function Checkout() {
   const [metadata, setMetadata] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [statusType, setStatusType] = useState('info');
+  const [krwPrices, setKrwPrices] = useState({ price: 0, fee: 0, total: 0 });
 
   const { listing, isLoading: listingLoading } = useListing(listingId);
   const { tokenURI, isLoading: tokenURILoading } = useTokenURI(listing?.tokenId);
@@ -213,6 +224,44 @@ function Checkout() {
 
     loadMetadata();
   }, [tokenURI]);
+
+  // 원화 가격 계산
+  useEffect(() => {
+    const calculateKrwPrices = async () => {
+      if (listing) {
+        try {
+          const price = BigInt(listing.price);
+          const fee = feePercent ? (price * BigInt(feePercent)) / BigInt(10000) : BigInt(0);
+          const total = price;
+
+          const priceEth = parseFloat(formatEther(price));
+          const feeEth = parseFloat(formatEther(fee));
+          const totalEth = parseFloat(formatEther(total));
+
+          const priceKrw = await convertETHToKRW(priceEth);
+          const feeKrw = await convertETHToKRW(feeEth);
+          const totalKrw = await convertETHToKRW(totalEth);
+
+          setKrwPrices({ price: priceKrw, fee: feeKrw, total: totalKrw });
+        } catch (error) {
+          console.error('원화 가격 계산 실패:', error);
+          // 폴백: 고정 환율 사용
+          const ETH_TO_KRW_RATE = 3000000;
+          const priceEth = parseFloat(formatEther(BigInt(listing.price)));
+          const feeEth = feePercent ? parseFloat(formatEther((BigInt(listing.price) * BigInt(feePercent)) / BigInt(10000))) : 0;
+          const totalEth = priceEth;
+
+          setKrwPrices({
+            price: Math.round(priceEth * ETH_TO_KRW_RATE),
+            fee: Math.round(feeEth * ETH_TO_KRW_RATE),
+            total: Math.round(totalEth * ETH_TO_KRW_RATE)
+          });
+        }
+      }
+    };
+
+    calculateKrwPrices();
+  }, [listing, feePercent]);
 
   // 구매 성공 시
   useEffect(() => {
@@ -308,17 +357,26 @@ function Checkout() {
         <PriceBreakdown>
           <PriceRow>
             <PriceLabel>가격</PriceLabel>
-            <PriceValue>{formatEther(price)} ETH</PriceValue>
+            <PriceValue>
+              {krwPrices.price.toLocaleString()}원
+              <PriceSubValue>({formatEther(price)} ETH)</PriceSubValue>
+            </PriceValue>
           </PriceRow>
 
           <PriceRow>
             <PriceLabel>수수료 ({feePercent ? (Number(feePercent) / 100).toFixed(2) : '0'}%)</PriceLabel>
-            <PriceValue>{formatEther(fee)} ETH</PriceValue>
+            <PriceValue>
+              {krwPrices.fee.toLocaleString()}원
+              <PriceSubValue>({formatEther(fee)} ETH)</PriceSubValue>
+            </PriceValue>
           </PriceRow>
 
           <PriceRow $total>
             <PriceLabel>총 결제 금액</PriceLabel>
-            <PriceValue>{formatEther(total)} ETH</PriceValue>
+            <PriceValue>
+              {krwPrices.total.toLocaleString()}원
+              <PriceSubValue>({formatEther(total)} ETH)</PriceSubValue>
+            </PriceValue>
           </PriceRow>
         </PriceBreakdown>
       </Card>

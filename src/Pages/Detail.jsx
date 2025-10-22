@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAccount } from 'wagmi';
@@ -128,6 +128,16 @@ const PriceValue = styled.div`
   font-weight: ${({ theme }) => theme.font.weight.bold};
   color: ${({ theme }) => theme.colors.primary};
   margin-bottom: ${({ theme }) => theme.spacing(2)};
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+`;
+
+const PriceSubValue = styled.span`
+  font-size: ${({ theme }) => theme.font.size.sm};
+  color: ${({ theme }) => theme.colors.textSub};
+  margin-top: 4px;
+  font-weight: ${({ theme }) => theme.font.weight.normal};
 `;
 
 const BuyButton = styled.button`
@@ -280,6 +290,8 @@ function Detail() {
   
   // 결제 모달 상태
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  
+  // 원화 가격은 useNFTDetail에서 제공되는 priceKrw 필드 사용
 
   const handleBuy = () => {
     if (!isConnected) {
@@ -363,10 +375,15 @@ function Detail() {
           <PriceBox>
             <PriceLabel>현재 가격</PriceLabel>
             <PriceValue>
-              {nft.price && nft.price !== '0' ? 
-                (nft.price.includes('.') ? `${nft.price} ETH` : `${formatEther(nft.price)} ETH`) : 
+              {nft.priceKrw && nft.priceKrw > 0 ? 
+                `${nft.priceKrw.toLocaleString()}원` : 
                 '가격 미정'
               }
+              {nft.priceKrw && nft.priceKrw > 0 && nft.price && nft.price !== '0' && (
+                <PriceSubValue>
+                  ({nft.price.includes('.') ? nft.price : formatEther(nft.price)} ETH)
+                </PriceSubValue>
+              )}
             </PriceValue>
             <BuyButton
               onClick={handleBuy}

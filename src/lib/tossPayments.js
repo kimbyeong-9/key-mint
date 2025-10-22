@@ -3,6 +3,9 @@ import { supabase } from './supabase';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther } from 'viem';
 
+// 환율 상수 (폴백용)
+const ETH_TO_KRW_RATE = 3000000;
+
 /**
  * 토스페이먼츠 클라이언트 초기화
  */
@@ -37,7 +40,6 @@ export const convertKRWToETH = async (krwAmount) => {
     if (error) {
       console.error('환율 변환 오류:', error);
       // 폴백: 고정 환율 사용
-      const ETH_TO_KRW_RATE = 3000000;
       return parseFloat((krwAmount / ETH_TO_KRW_RATE).toFixed(6));
     }
     
@@ -45,7 +47,6 @@ export const convertKRWToETH = async (krwAmount) => {
   } catch (error) {
     console.error('환율 변환 실패:', error);
     // 폴백: 고정 환율 사용
-    const ETH_TO_KRW_RATE = 3000000;
     return parseFloat((krwAmount / ETH_TO_KRW_RATE).toFixed(6));
   }
 };
@@ -62,7 +63,6 @@ export const convertETHToKRW = async (ethAmount) => {
     if (error) {
       console.error('환율 변환 오류:', error);
       // 폴백: 고정 환율 사용
-      const ETH_TO_KRW_RATE = 3000000;
       return Math.round(ethAmount * ETH_TO_KRW_RATE);
     }
     
@@ -70,7 +70,6 @@ export const convertETHToKRW = async (ethAmount) => {
   } catch (error) {
     console.error('환율 변환 실패:', error);
     // 폴백: 고정 환율 사용
-    const ETH_TO_KRW_RATE = 3000000;
     return Math.round(ethAmount * ETH_TO_KRW_RATE);
   }
 };

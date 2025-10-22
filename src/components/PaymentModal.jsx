@@ -115,6 +115,18 @@ const PriceInput = styled.input`
   }
 `;
 
+const PriceDisplay = styled.div`
+  font-size: ${({ theme }) => theme.font.size.lg};
+  font-weight: ${({ theme }) => theme.font.weight.bold};
+  color: ${({ theme }) => theme.colors.primary};
+  text-align: center;
+  padding: ${({ theme }) => theme.spacing(1)} 0;
+  margin: ${({ theme }) => theme.spacing(1)} 0;
+  background: ${({ theme }) => `${theme.colors.primary}10`};
+  border: 1px solid ${({ theme }) => `${theme.colors.primary}30`};
+  border-radius: ${({ theme }) => theme.radius.md};
+`;
+
 const PriceInfo = styled.div`
   display: flex;
   justify-content: space-between;
@@ -389,9 +401,14 @@ function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
             min="0"
             step="1000"
           />
+          {krwAmount > 0 && (
+            <PriceDisplay>
+              {krwAmount.toLocaleString()}원
+            </PriceDisplay>
+          )}
           <PriceInfo>
             <span>ETH: {ethAmount.toFixed(6)}</span>
-            <span>환율: 1 ETH = 3,000,000 KRW</span>
+            <span>환율: 1 ETH = {Math.round(3000000).toLocaleString()} KRW</span>
           </PriceInfo>
         </PriceSection>
 

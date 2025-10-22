@@ -5,8 +5,9 @@ import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Modal from '../components/Modal';
 import { useUser } from '../contexts/UserContext';
-import { uploadOptimizedNFTImage } from '../lib/supabase';
+import { uploadOptimizedNFTImage, supabase } from '../lib/supabase';
 import { useBlockchainMint } from '../hooks/useBlockchain';
+import { convertKRWToETH, convertETHToKRW } from '../lib/tossPayments';
 
 const Container = styled.div`
   max-width: 800px;
@@ -102,6 +103,25 @@ const Input = styled.input`
   &::placeholder {
     color: ${({ theme }) => theme.colors.textDark};
   }
+`;
+
+const PriceInputContainer = styled.div`
+  position: relative;
+  display: flex;
+  align-items: center;
+`;
+
+const PriceInput = styled(Input)`
+  padding-right: 40px; /* "원" 텍스트를 위한 공간 */
+`;
+
+const CurrencyUnit = styled.span`
+  position: absolute;
+  right: ${({ theme }) => theme.spacing(1.5)};
+  color: ${({ theme }) => theme.colors.textSub};
+  font-size: ${({ theme }) => theme.font.size.md};
+  pointer-events: none;
+  user-select: none;
 `;
 
 const Textarea = styled.textarea`
@@ -307,6 +327,12 @@ const ErrorMessage = styled.div`
   margin-top: ${({ theme }) => theme.spacing(0.5)};
 `;
 
+const PriceInfo = styled.div`
+  color: ${({ theme }) => theme.colors.textSub};
+  font-size: ${({ theme }) => theme.font.size.sm};
+  margin-top: ${({ theme }) => theme.spacing(0.5)};
+`;
+
 const SuccessMessage = styled.div`
   color: ${({ theme }) => theme.colors.success};
   font-size: ${({ theme }) => theme.font.size.sm};
@@ -336,7 +362,8 @@ function Create() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    price: '',
+    price: '', // ETH 가격 (계산된 값)
+    krwPrice: '', // 원화 가격 (사용자 입력)
     file: null,
   });
 
@@ -357,16 +384,48 @@ function Create() {
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
-    setFormData({ name: '', description: '', price: '', file: null });
+    setFormData({ name: '', description: '', price: '', krwPrice: '', file: null });
     setPreview('');
     setErrors({});
     setIsDragOver(false);
     setUploadProgress(0);
   };
 
+  // 숫자에 천 단위 구분자 추가하는 함수
+  const addCommas = (num) => {
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
+
+  // 콤마가 포함된 문자열에서 숫자만 추출하는 함수
+  const removeCommas = (str) => {
+    return str.replace(/,/g, '');
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    if (name === 'krwPrice') {
+      // 콤마 제거 후 숫자만 추출
+      const numericValue = removeCommas(value);
+      
+      // 숫자가 아닌 경우 빈 문자열로 처리
+      if (numericValue === '' || /^\d+$/.test(numericValue)) {
+        const krwAmount = parseInt(numericValue) || 0;
+        const ETH_TO_KRW_RATE = 3000000;
+        const ethAmount = parseFloat((krwAmount / ETH_TO_KRW_RATE).toFixed(6));
+        
+        // 콤마가 포함된 값으로 표시
+        const formattedValue = numericValue === '' ? '' : addCommas(numericValue);
+        
+        setFormData((prev) => ({ 
+          ...prev, 
+          krwPrice: formattedValue,
+          price: ethAmount.toString()
+        }));
+      }
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
     
     // 에러 초기화
     if (errors[name]) {
@@ -496,8 +555,10 @@ function Create() {
       newErrors.description = '설명을 입력해주세요.';
     }
     
-    if (!formData.price || parseFloat(formData.price) <= 0) {
-      newErrors.price = '올바른 가격을 입력해주세요.';
+    // 콤마 제거 후 숫자 검증
+    const numericKrwPrice = removeCommas(formData.krwPrice);
+    if (!numericKrwPrice || parseInt(numericKrwPrice) <= 0) {
+      newErrors.krwPrice = '올바른 가격을 입력해주세요.';
     }
     
     if (!formData.file) {
@@ -590,6 +651,13 @@ function Create() {
           console.log('✅ 블록체인 민팅 완료:', blockchainResult);
         } catch (blockchainError) {
           console.warn('⚠️ 블록체인 민팅 실패 (로컬 저장은 계속 진행):', blockchainError);
+          
+          // 사용자가 트랜잭션을 거부한 경우 특별 처리
+          if (blockchainError.code === 4001 || blockchainError.message?.includes('User denied')) {
+            console.log('ℹ️ 사용자가 트랜잭션을 거부했습니다. 로컬 저장만 진행합니다.');
+            // 사용자에게 알림 표시
+            alert('⚠️ MetaMask에서 트랜잭션을 거부하셨습니다.\n\nNFT는 로컬에 저장되지만 블록체인에 민팅되지 않았습니다.\n\n다시 시도하려면 "등록" 버튼을 클릭하고 MetaMask에서 "승인"을 선택해주세요.');
+          }
         }
       } else if (isConnected && !enableBlockchain) {
         console.log('📝 블록체인 민팅 비활성화 (Web3.Storage 유지보수 중)');
@@ -611,6 +679,12 @@ function Create() {
         const nftId = `nft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         savedNftId = nftId;
         
+        // 고유한 토큰 ID 생성 (블록체인 민팅 실패 시에도 고유성 보장)
+        // 데이터베이스에서 정수 타입을 기대하므로 숫자로 변환
+        const uniqueTokenId = blockchainResult?.tokenId ? 
+          parseInt(blockchainResult.tokenId.toString()) : 
+          Math.floor(Date.now() / 1000); // 현재 시간을 초 단위로 변환하여 고유한 정수 생성
+        
         console.log('💾 Supabase에 NFT 데이터 저장 시작...', { 
           nftId, 
           name: formData.name, 
@@ -629,7 +703,7 @@ function Create() {
             metadata_uri: blockchainResult?.metadataURI || null,
             attributes: [],
             creator_address: currentUser.id, // Supabase 사용자 ID 사용
-            token_id: blockchainResult?.tokenId || null,
+            token_id: uniqueTokenId,
             transaction_hash: blockchainResult?.transactionHash || null,
             block_number: blockchainResult?.blockNumber || null
           })
@@ -642,19 +716,19 @@ function Create() {
           console.log('✅ NFT 메타데이터 저장 완료:', metadataData);
         }
 
-        // 2. nft_listings 테이블에 리스팅 정보 저장
-        const { data: listingData, error: listingError } = await supabase
-          .from('nft_listings')
-          .insert({
-            nft_id: nftId,
-            nft_contract_address: blockchainResult?.contractAddress || '0x0000000000000000000000000000000000000000',
-            token_id: blockchainResult?.tokenId?.toString() || '0',
-            seller_address: currentUser.id, // Supabase 사용자 ID 사용
-            price_eth: parseFloat(formData.price),
-            price_krw: Math.round(parseFloat(formData.price) * 600000), // ETH to KRW 환율 적용
-            is_active: true
-          })
-          .select();
+               // 2. nft_listings 테이블에 리스팅 정보 저장
+               const { data: listingData, error: listingError } = await supabase
+                 .from('nft_listings')
+                 .insert({
+                   nft_id: nftId,
+                   nft_contract_address: blockchainResult?.contractAddress || '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+                   token_id: uniqueTokenId,
+                   seller_address: currentUser.id, // Supabase 사용자 ID 사용
+                   price_eth: parseFloat(formData.price),
+                   price_krw: parseInt(removeCommas(formData.krwPrice)), // 콤마 제거 후 원화 가격
+                   is_active: true
+                 })
+                 .select();
 
         if (listingError) {
           console.error('❌ NFT 리스팅 저장 실패:', listingError);
@@ -798,6 +872,7 @@ function Create() {
             <FileInput
               type="file"
               id="file"
+              name="file"
               accept="image/*"
               onChange={handleFileChange}
               required
@@ -872,19 +947,25 @@ function Create() {
           </InputGroup>
 
           <InputGroup>
-            <Label htmlFor="price">가격 (ETH)</Label>
-            <Input
-              type="number"
-              id="price"
-              name="price"
-              placeholder="0.1"
-              step="0.01"
-              min="0"
-              value={formData.price}
-              onChange={handleChange}
-              required
-            />
-            {errors.price && <ErrorMessage>{errors.price}</ErrorMessage>}
+            <Label htmlFor="krwPrice">가격 (원화)</Label>
+            <PriceInputContainer>
+              <PriceInput
+                type="text"
+                id="krwPrice"
+                name="krwPrice"
+                placeholder="300,000"
+                value={formData.krwPrice}
+                onChange={handleChange}
+                required
+              />
+              <CurrencyUnit>원</CurrencyUnit>
+            </PriceInputContainer>
+            {formData.price && (
+              <PriceInfo>
+                ETH: {parseFloat(formData.price).toFixed(6)}
+              </PriceInfo>
+            )}
+            {errors.krwPrice && <ErrorMessage>{errors.krwPrice}</ErrorMessage>}
           </InputGroup>
 
           <Button type="submit" disabled={isSubmitting || isMinting}>

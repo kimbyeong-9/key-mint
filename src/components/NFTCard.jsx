@@ -139,6 +139,13 @@ const PriceValue = styled.span`
   color: ${({ theme }) => theme.colors.primary};
 `;
 
+const PriceSubValue = styled.span`
+  font-size: ${({ theme }) => theme.font.size.xs};
+  color: ${({ theme }) => theme.colors.textSub};
+  margin-top: 2px;
+  display: block;
+`;
+
 const Owner = styled.div`
   font-size: ${({ theme }) => theme.font.size.xs};
   color: ${({ theme }) => theme.colors.textSub};
@@ -189,11 +196,16 @@ function NFTCard({ nft }) {
             <Price>
               <PriceLabel>가격</PriceLabel>
               <PriceValue>
-                {nft.price && nft.price !== '0' ? 
-                  (nft.price.includes('.') ? `${nft.price} ETH` : `${formatEther(nft.price)} ETH`) : 
+                {nft.priceKrw && nft.priceKrw > 0 ? 
+                  `${nft.priceKrw.toLocaleString()}원` : 
                   '가격 미정'
                 }
               </PriceValue>
+              {nft.price && nft.price !== '0' && nft.priceKrw && nft.priceKrw > 0 && (
+                <PriceSubValue>
+                  ({nft.price.includes('.') ? nft.price : formatEther(nft.price)} ETH)
+                </PriceSubValue>
+              )}
             </Price>
 
             {nft.creator && (

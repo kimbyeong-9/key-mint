@@ -1,11 +1,27 @@
-import { ethers, network } from "hardhat";
+import { ethers } from "ethers";
 import fs from 'fs';
 
 async function main() {
   console.log("🚀 VaultNFT 스마트 컨트랙트 배포 시작...");
 
-  // VaultNFT 컨트랙트 가져오기
-  const VaultNFT = await ethers.getContractFactory("VaultNFT");
+  // 로컬 네트워크에 연결
+  const provider = new ethers.JsonRpcProvider("http://127.0.0.1:8545");
+  
+  // 첫 번째 계정의 프라이빗 키 (Hardhat 기본 계정)
+  const privateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+  const wallet = new ethers.Wallet(privateKey, provider);
+  
+  console.log("🔑 사용할 계정:", wallet.address);
+
+  // VaultNFT 컨트랙트 ABI와 바이트코드
+  const VaultNFTArtifact = JSON.parse(fs.readFileSync('./artifacts/contracts/VaultNFT.sol/VaultNFT.json', 'utf8'));
+  
+  // 컨트랙트 팩토리 생성
+  const VaultNFT = new ethers.ContractFactory(
+    VaultNFTArtifact.abi,
+    VaultNFTArtifact.bytecode,
+    wallet
+  );
   
   // 컨트랙트 배포
   const vaultNFT = await VaultNFT.deploy();
@@ -18,14 +34,14 @@ async function main() {
   
   console.log("✅ VaultNFT 배포 완료!");
   console.log("📍 컨트랙트 주소:", contractAddress);
-  console.log("🌐 네트워크:", network.name);
-  console.log("⛓️ 체인 ID:", network.config.chainId);
+  console.log("🌐 네트워크: localhost");
+  console.log("⛓️ 체인 ID: 31337");
   
   // 컨트랙트 정보를 파일에 저장
   const contractInfo = {
     address: contractAddress,
-    network: network.name,
-    chainId: network.config.chainId,
+    network: "localhost",
+    chainId: 31337,
     deployedAt: new Date().toISOString(),
     abi: [
       {

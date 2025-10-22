@@ -30,6 +30,15 @@ if (supabaseUrl && supabaseAnonKey) {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        // Refresh Token 오류 시 자동으로 세션 제거
+        onAuthStateChange: (event) => {
+          if (event === 'TOKEN_REFRESHED') {
+            console.log('✅ 토큰 갱신 성공');
+          }
+          if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+            console.log('🔒 로그아웃됨');
+          }
+        },
       },
     });
 

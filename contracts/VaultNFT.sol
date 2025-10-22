@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
  * @title VaultNFT
@@ -11,9 +11,7 @@ import "@openzeppelin/contracts/utils/Counters.sol";
  * @notice IPFS 메타데이터와 함께 NFT 발행
  */
 contract VaultNFT is ERC721URIStorage, Ownable {
-    using Counters for Counters.Counter;
-
-    Counters.Counter private _tokenIds;
+    uint256 private _nextTokenId = 1;
 
     // 발행자 권한 관리
     mapping(address => bool) public minters;
@@ -61,8 +59,8 @@ contract VaultNFT is ERC721URIStorage, Ownable {
             revert InvalidTokenURI();
         }
 
-        _tokenIds.increment();
-        uint256 newTokenId = _tokenIds.current();
+        uint256 newTokenId = _nextTokenId;
+        _nextTokenId++;
 
         _safeMint(to, newTokenId);
         _setTokenURI(newTokenId, tokenURI);
@@ -99,7 +97,7 @@ contract VaultNFT is ERC721URIStorage, Ownable {
      * @return 총 토큰 개수
      */
     function totalSupply() external view returns (uint256) {
-        return _tokenIds.current();
+        return _nextTokenId - 1;
     }
 
     /**
@@ -116,7 +114,7 @@ contract VaultNFT is ERC721URIStorage, Ownable {
      * @param operator 승인할 주소
      * @param approved 승인 여부
      */
-    function setApprovalForAll(address operator, bool approved) public virtual override {
-        _setApprovalForAll(msg.sender, operator, approved);
+    function setApprovalForAll(address operator, bool approved) public virtual override(ERC721, IERC721) {
+        super.setApprovalForAll(operator, approved);
     }
 }
