@@ -5,6 +5,7 @@ import NFTCard from '../components/NFTCard';
 import { useUser } from '../contexts/UserContext';
 import { useListingCounter } from '../hooks/useMarket';
 import { useNFTs } from '../hooks/useNFTs';
+import { useNFTCount } from '../hooks/useNFTCount';
 
 const Container = styled.div`
   max-width: 1280px;
@@ -440,6 +441,9 @@ function Home() {
   
   // 실제 NFT 데이터를 가져오는 훅 사용
   const { nfts, loading, error, refetch } = useNFTs();
+  
+  // NFT 개수를 가져오는 훅 사용
+  const { count: nftCount, loading: countLoading, refetch: refetchCount } = useNFTCount();
 
   const handleCreateClick = () => {
     navigate('/create');
@@ -521,7 +525,8 @@ function Home() {
   // NFT 등록 후 목록 새로고침을 위한 useEffect
   useEffect(() => {
     const handleStorageChange = () => {
-      refetch();
+      refetch(); // NFT 목록 새로고침
+      refetchCount(); // NFT 개수 새로고침
     };
 
     // 로컬 스토리지 변경 감지
@@ -534,7 +539,7 @@ function Home() {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('focus', handleStorageChange);
     };
-  }, [refetch]);
+  }, [refetch, refetchCount]);
 
 
   return (
@@ -547,7 +552,7 @@ function Home() {
 
         <Stats>
           <StatItem>
-            <strong>{nfts.length}</strong>
+            <strong>{countLoading ? '...' : nftCount}</strong>
             <span>등록된 NFT</span>
           </StatItem>
           <StatItem>

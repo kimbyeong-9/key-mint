@@ -2,82 +2,70 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { handlePaymentSuccess } from '../lib/tossPayments';
-import { useETHBalance } from '../hooks/useETHBalance';
-import { usePortfolio } from '../hooks/usePortfolio';
-import { useNotification } from '../components/NotificationSystem';
+import { useUser } from '../contexts/UserContext';
 
 const Container = styled.div`
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: ${({ theme }) => theme.colors.bg};
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: ${({ theme }) => theme.spacing(2)};
 `;
 
 const Card = styled.div`
-  background: ${({ theme }) => theme.colors.card};
+  background: white;
   border-radius: ${({ theme }) => theme.radius.lg};
   padding: ${({ theme }) => theme.spacing(4)};
   max-width: 500px;
   width: 100%;
   text-align: center;
-  border: 1px solid ${({ theme }) => theme.colors.border};
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
 `;
 
 const SuccessIcon = styled.div`
-  width: 80px;
-  height: 80px;
-  background: #4CAF50;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto ${({ theme }) => theme.spacing(3)} auto;
-  font-size: 40px;
-  color: white;
+  font-size: 64px;
+  margin-bottom: ${({ theme }) => theme.spacing(3)};
 `;
 
 const Title = styled.h1`
   font-size: ${({ theme }) => theme.font.size.xxl};
   font-weight: ${({ theme }) => theme.font.weight.bold};
-  color: ${({ theme }) => theme.colors.text};
-  margin: 0 0 ${({ theme }) => theme.spacing(2)} 0;
+  color: #10b981;
+  margin-bottom: ${({ theme }) => theme.spacing(2)};
 `;
 
 const Message = styled.p`
-  font-size: ${({ theme }) => theme.font.size.md};
+  font-size: ${({ theme }) => theme.font.size.lg};
   color: ${({ theme }) => theme.colors.textSub};
-  margin: 0 0 ${({ theme }) => theme.spacing(3)} 0;
-  line-height: 1.6;
+  margin-bottom: ${({ theme }) => theme.spacing(4)};
 `;
 
-const PaymentInfo = styled.div`
-  background: ${({ theme }) => theme.colors.bgLight};
+const PaymentDetails = styled.div`
+  background: #f8fafc;
   border-radius: ${({ theme }) => theme.radius.md};
   padding: ${({ theme }) => theme.spacing(3)};
-  margin-bottom: ${({ theme }) => theme.spacing(3)};
+  margin-bottom: ${({ theme }) => theme.spacing(4)};
   text-align: left;
 `;
 
-const InfoItem = styled.div`
+const DetailRow = styled.div`
   display: flex;
   justify-content: space-between;
-  margin-bottom: ${({ theme }) => theme.spacing(1)};
+  margin-bottom: ${({ theme }) => theme.spacing(2)};
   
   &:last-child {
     margin-bottom: 0;
   }
 `;
 
-const InfoLabel = styled.span`
-  font-size: ${({ theme }) => theme.font.size.sm};
+const DetailLabel = styled.span`
+  font-weight: ${({ theme }) => theme.font.weight.medium};
   color: ${({ theme }) => theme.colors.textSub};
 `;
 
-const InfoValue = styled.span`
-  font-size: ${({ theme }) => theme.font.size.sm};
-  font-weight: ${({ theme }) => theme.font.weight.medium};
+const DetailValue = styled.span`
+  font-weight: ${({ theme }) => theme.font.weight.bold};
   color: ${({ theme }) => theme.colors.text};
 `;
 
@@ -88,48 +76,42 @@ const ButtonGroup = styled.div`
 `;
 
 const Button = styled.button`
-  padding: ${({ theme }) => theme.spacing(2)} ${({ theme }) => theme.spacing(3)};
+  padding: ${({ theme }) => theme.spacing(2)} ${({ theme }) => theme.spacing(4)};
   border: none;
   border-radius: ${({ theme }) => theme.radius.md};
   font-size: ${({ theme }) => theme.font.size.md};
   font-weight: ${({ theme }) => theme.font.weight.medium};
   cursor: pointer;
-  transition: ${({ theme }) => theme.transition.fast};
-
-  ${({ $variant, theme }) => {
-    if ($variant === 'primary') {
-      return `
-        background: ${theme.colors.primary};
-        color: white;
-        
-        &:hover {
-          background: ${theme.colors.primaryHover};
-        }
-      `;
-    } else {
-      return `
-        background: ${theme.colors.bgLight};
-        color: ${theme.colors.text};
-        border: 1px solid ${theme.colors.border};
-        
-        &:hover {
-          background: ${theme.colors.border};
-        }
-      `;
+  transition: all 0.2s ease;
+  
+  ${({ $variant }) => $variant === 'primary' && `
+    background: #3b82f6;
+    color: white;
+    
+    &:hover {
+      background: #2563eb;
     }
-  }}
+  `}
+  
+  ${({ $variant }) => $variant === 'secondary' && `
+    background: #f1f5f9;
+    color: #475569;
+    
+    &:hover {
+      background: #e2e8f0;
+    }
+  `}
 `;
 
 const LoadingSpinner = styled.div`
-  display: inline-block;
   width: 20px;
   height: 20px;
-  border: 2px solid transparent;
-  border-top: 2px solid currentColor;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #3b82f6;
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-right: ${({ theme }) => theme.spacing(1)};
-
+  margin-right: 8px;
+  
   @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -139,9 +121,7 @@ const LoadingSpinner = styled.div`
 function PaymentSuccess() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { fetchBalance } = useETHBalance();
-  const { refreshPortfolio } = usePortfolio();
-  const { notifyPurchaseSuccess, notifyPortfolioUpdate } = useNotification();
+  const { user } = useUser();
   const [isProcessing, setIsProcessing] = useState(true);
   const [paymentData, setPaymentData] = useState(null);
   const [error, setError] = useState(null);
@@ -149,30 +129,22 @@ function PaymentSuccess() {
   useEffect(() => {
     const processPayment = async () => {
       try {
-        // URL 파라미터에서 결제 정보 추출
-        const orderId = searchParams.get('orderId');
         const paymentKey = searchParams.get('paymentKey');
+        const orderId = searchParams.get('orderId');
         const amount = searchParams.get('amount');
 
-        if (!orderId || !paymentKey || !amount) {
+        if (!paymentKey || !orderId || !amount) {
           throw new Error('결제 정보가 올바르지 않습니다.');
         }
 
-        console.log('💳 결제 성공 처리:', { orderId, paymentKey, amount });
+        console.log('💳 결제 성공 페이지 - 결제 처리 시작:', { paymentKey, orderId, amount });
 
         // 결제 완료 처리
-        const processedPayment = await handlePaymentSuccess(orderId, paymentKey, parseInt(amount));
-        setPaymentData(processedPayment);
-
-        console.log('✅ 결제 완료 처리 성공:', processedPayment);
+        const result = await handlePaymentSuccess(orderId, paymentKey, parseInt(amount));
         
-        // ETH 잔액 및 포트폴리오 새로고침
-        await fetchBalance();
-        await refreshPortfolio();
+        setPaymentData(result);
+        console.log('✅ 결제 완료 처리 성공:', result);
         
-        // 알림 표시
-        notifyPortfolioUpdate();
-
       } catch (error) {
         console.error('❌ 결제 처리 실패:', error);
         setError(error.message);
@@ -188,8 +160,8 @@ function PaymentSuccess() {
     navigate('/');
   };
 
-  const handleViewNFTs = () => {
-    navigate('/');
+  const handleGoPortfolio = () => {
+    navigate('/portfolio');
   };
 
   if (isProcessing) {
@@ -198,7 +170,7 @@ function PaymentSuccess() {
         <Card>
           <LoadingSpinner />
           <Title>결제 처리 중...</Title>
-          <Message>결제 정보를 확인하고 있습니다.</Message>
+          <Message>잠시만 기다려주세요.</Message>
         </Card>
       </Container>
     );
@@ -208,7 +180,7 @@ function PaymentSuccess() {
     return (
       <Container>
         <Card>
-          <div style={{ fontSize: '40px', marginBottom: '16px' }}>❌</div>
+          <SuccessIcon>❌</SuccessIcon>
           <Title>결제 처리 실패</Title>
           <Message>{error}</Message>
           <ButtonGroup>
@@ -224,38 +196,33 @@ function PaymentSuccess() {
   return (
     <Container>
       <Card>
-        <SuccessIcon>✓</SuccessIcon>
+        <SuccessIcon>✅</SuccessIcon>
         <Title>결제가 완료되었습니다!</Title>
-        <Message>
-          NFT 구매가 성공적으로 완료되었습니다.<br />
-          이제 해당 NFT를 소유하게 되었습니다.
-        </Message>
-
+        <Message>NFT 구매가 성공적으로 완료되었습니다.</Message>
+        
         {paymentData && (
-          <PaymentInfo>
-            <InfoItem>
-              <InfoLabel>주문 번호</InfoLabel>
-              <InfoValue>{paymentData.orderId}</InfoValue>
-            </InfoItem>
-            <InfoItem>
-              <InfoLabel>결제 금액</InfoLabel>
-              <InfoValue>{paymentData.amount?.toLocaleString()}원</InfoValue>
-            </InfoItem>
-            <InfoItem>
-              <InfoLabel>결제 시간</InfoLabel>
-              <InfoValue>
-                {new Date(paymentData.completedAt).toLocaleString('ko-KR')}
-              </InfoValue>
-            </InfoItem>
-          </PaymentInfo>
+          <PaymentDetails>
+            <DetailRow>
+              <DetailLabel>주문번호</DetailLabel>
+              <DetailValue>{paymentData.orderId}</DetailValue>
+            </DetailRow>
+            <DetailRow>
+              <DetailLabel>결제금액</DetailLabel>
+              <DetailValue>{paymentData.amount?.toLocaleString()}원</DetailValue>
+            </DetailRow>
+            <DetailRow>
+              <DetailLabel>결제일시</DetailLabel>
+              <DetailValue>{new Date(paymentData.completedAt).toLocaleString()}</DetailValue>
+            </DetailRow>
+          </PaymentDetails>
         )}
-
+        
         <ButtonGroup>
           <Button $variant="secondary" onClick={handleGoHome}>
-            홈으로 돌아가기
+            홈으로
           </Button>
-          <Button $variant="primary" onClick={handleViewNFTs}>
-            NFT 보기
+          <Button $variant="primary" onClick={handleGoPortfolio}>
+            포트폴리오 보기
           </Button>
         </ButtonGroup>
       </Card>

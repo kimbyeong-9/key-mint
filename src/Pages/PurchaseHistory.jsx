@@ -4,6 +4,8 @@ import styled from 'styled-components';
 import { useUser } from '../contexts/UserContext';
 import { supabase } from '../lib/supabase';
 import { formatEther, formatKRW, formatDate } from '../lib/format';
+import RefundModal from '../components/RefundModal';
+import { FaUndo } from 'react-icons/fa';
 
 const Container = styled.div`
   min-height: 100vh;
@@ -203,6 +205,35 @@ const BackButton = styled.button`
   }
 `;
 
+const RefundButton = styled.button`
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing(1)};
+  padding: ${({ theme }) => theme.spacing(1)} ${({ theme }) => theme.spacing(2)};
+  background: ${({ theme }) => theme.colors.warning};
+  border: none;
+  border-radius: ${({ theme }) => theme.radius.sm};
+  color: white;
+  font-size: ${({ theme }) => theme.font.size.sm};
+  cursor: pointer;
+  transition: ${({ theme }) => theme.transition.fast};
+
+  &:hover:not(:disabled) {
+    background: ${({ theme }) => theme.colors.warningHover || '#d97706'};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const ActionButtons = styled.div`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing(2)};
+  margin-top: ${({ theme }) => theme.spacing(2)};
+`;
+
 function PurchaseHistory() {
   const navigate = useNavigate();
   const { user } = useUser();
@@ -211,6 +242,8 @@ function PurchaseHistory() {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [selectedPurchase, setSelectedPurchase] = useState(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -287,6 +320,24 @@ function PurchaseHistory() {
       </Container>
     );
   }
+
+  const handleRefundRequest = (purchase) => {
+    setSelectedPurchase(purchase);
+    setShowRefundModal(true);
+  };
+
+  const handleRefundSuccess = () => {
+    setShowRefundModal(false);
+    setSelectedPurchase(null);
+    fetchPurchaseHistory(); // 목록 새로고침
+  };
+
+  const canRefund = (purchase) => {
+    const purchaseTime = new Date(purchase.purchase_date);
+    const now = new Date();
+    const hoursDiff = (now - purchaseTime) / (1000 * 60 * 60);
+    return hoursDiff <= 24 && purchase.status === 'completed';
+  };
 
   return (
     <Container>
@@ -369,9 +420,28 @@ function PurchaseHistory() {
                   </DetailValue>
                 </DetailItem>
               </PurchaseDetails>
+
+              {canRefund(purchase) && (
+                <ActionButtons>
+                  <RefundButton onClick={() => handleRefundRequest(purchase)}>
+                    <FaUndo />
+                    환불 요청
+                  </RefundButton>
+                </ActionButtons>
+              )}
             </PurchaseCard>
           ))}
         </PurchaseList>
+      )}
+
+      {showRefundModal && selectedPurchase && (
+        <RefundModal
+          isOpen={showRefundModal}
+          onClose={() => setShowRefundModal(false)}
+          payment={selectedPurchase}
+          nft={{ id: selectedPurchase.nft_id, name: `NFT #${selectedPurchase.nft_id}` }}
+          onSuccess={handleRefundSuccess}
+        />
       )}
     </Container>
   );

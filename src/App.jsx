@@ -3,6 +3,7 @@ import AppRoutes from "./Route";
 import { UserProvider } from "./contexts/UserContext";
 import ErrorBoundary from "./components/ErrorBoundary";
 import NotificationProvider from "./components/NotificationSystem";
+import WebSocketErrorHandler from "./components/WebSocketErrorHandler";
 import "./lib/supabaseMCP"; // MCP 초기화
 
 /**
@@ -15,6 +16,7 @@ function App() {
       <UserProvider>
         <NotificationProvider>
           <ErrorBoundary>
+            <WebSocketErrorHandler />
             <Layout>
               <AppRoutes />
             </Layout>

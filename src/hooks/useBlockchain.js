@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { uploadMetadataToIPFS, createNFTMetadata } from '../lib/ipfs';
+import { supabase } from '../lib/supabase';
 
 /**
  * 로컬 메타데이터 URI 생성 (한글 문자 처리)
@@ -58,8 +59,8 @@ const VAULT_NFT_ABI = [
   }
 ];
 
-// 컨트랙트 주소 (배포 후 업데이트 필요)
-const VAULT_NFT_ADDRESS = import.meta.env.VITE_VAULT_NFT_ADDRESS || '0x0000000000000000000000000000000000000000';
+// 컨트랙트 주소 (Sepolia 테스트넷에 배포됨)
+const VAULT_NFT_ADDRESS = import.meta.env.VITE_VAULT_NFT_ADDRESS || '0x843a39A61f4F7EaC995e5899F4559FfA2250579dc';
 
 /**
  * 블록체인 NFT 민팅 훅
@@ -76,6 +77,31 @@ export function useBlockchainMint() {
   });
 
   /**
+   * 민터 권한 확인 및 추가
+   */
+  const checkAndAddMinter = async () => {
+    try {
+      // 현재 사용자가 민터인지 확인
+      const { data: isMinter } = await supabase.rpc('call_contract', {
+        contract_address: VAULT_NFT_ADDRESS,
+        function_name: 'isMinter',
+        args: [address]
+      });
+
+      if (!isMinter) {
+        console.log('🔑 민터 권한이 없습니다. 민터 추가를 요청합니다...');
+        // TODO: 민터 추가 로직 (현재는 건너뛰기)
+        console.warn('⚠️ 민터 권한이 필요합니다. 관리자에게 문의하세요.');
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.warn('⚠️ 민터 권한 확인 실패:', error);
+      return false;
+    }
+  };
+
+  /**
    * NFT 민팅 실행
    * @param {Object} nftData - NFT 데이터
    * @returns {Promise<Object>} 민팅 결과
@@ -87,6 +113,19 @@ export function useBlockchainMint() {
 
     if (!VAULT_NFT_ADDRESS || VAULT_NFT_ADDRESS === '0x0000000000000000000000000000000000000000') {
       throw new Error('스마트 컨트랙트가 배포되지 않았습니다.');
+    }
+
+    // 민터 권한 확인
+    const hasMinterRole = await checkAndAddMinter();
+    if (!hasMinterRole) {
+      console.warn('⚠️ 민터 권한이 없어 블록체인 민팅을 건너뜁니다.');
+      return {
+        metadataURI: createLocalMetadataURI(createNFTMetadata(nftData)),
+        transactionHash: null,
+        isPending: false,
+        skipped: true,
+        reason: '민터 권한 없음'
+      };
     }
 
     try {

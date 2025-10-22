@@ -566,8 +566,8 @@ function Create() {
       // 3. 블록체인 민팅 (현재 Web3.Storage 유지보수로 인해 비활성화)
       let blockchainResult = null;
       
-      // Web3.Storage 상태 확인 후 활성화
-      const enableBlockchain = true; // 블록체인 민팅 활성화
+      // 블록체인 민팅 활성화 (Sepolia 테스트넷)
+      const enableBlockchain = true;
       
       if (isConnected && enableBlockchain) {
         try {
@@ -597,7 +597,81 @@ function Create() {
         console.log('📝 블록체인 민팅 활성화 - 로컬 메타데이터 사용');
       }
 
-      // 4. 로컬 스토리지에 저장
+      // 4. Supabase에 NFT 메타데이터 저장
+      let savedNftId = null;
+      try {
+        // 현재 로그인된 사용자 정보 가져오기
+        const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !currentUser) {
+          throw new Error('로그인이 필요합니다. 먼저 로그인해주세요.');
+        }
+
+        // 고유한 NFT ID 생성
+        const nftId = `nft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        savedNftId = nftId;
+        
+        console.log('💾 Supabase에 NFT 데이터 저장 시작...', { 
+          nftId, 
+          name: formData.name, 
+          userId: currentUser.id,
+          walletAddress: address 
+        });
+        
+        // 1. nft_metadata 테이블에 메타데이터 저장
+        const { data: metadataData, error: metadataError } = await supabase
+          .from('nft_metadata')
+          .insert({
+            nft_id: nftId,
+            name: formData.name,
+            description: formData.description,
+            image_url: imageResult.url,
+            metadata_uri: blockchainResult?.metadataURI || null,
+            attributes: [],
+            creator_address: currentUser.id, // Supabase 사용자 ID 사용
+            token_id: blockchainResult?.tokenId || null,
+            transaction_hash: blockchainResult?.transactionHash || null,
+            block_number: blockchainResult?.blockNumber || null
+          })
+          .select();
+
+        if (metadataError) {
+          console.error('❌ NFT 메타데이터 저장 실패:', metadataError);
+          throw new Error(`메타데이터 저장 실패: ${metadataError.message}`);
+        } else {
+          console.log('✅ NFT 메타데이터 저장 완료:', metadataData);
+        }
+
+        // 2. nft_listings 테이블에 리스팅 정보 저장
+        const { data: listingData, error: listingError } = await supabase
+          .from('nft_listings')
+          .insert({
+            nft_id: nftId,
+            nft_contract_address: blockchainResult?.contractAddress || '0x0000000000000000000000000000000000000000',
+            token_id: blockchainResult?.tokenId?.toString() || '0',
+            seller_address: currentUser.id, // Supabase 사용자 ID 사용
+            price_eth: parseFloat(formData.price),
+            price_krw: Math.round(parseFloat(formData.price) * 600000), // ETH to KRW 환율 적용
+            is_active: true
+          })
+          .select();
+
+        if (listingError) {
+          console.error('❌ NFT 리스팅 저장 실패:', listingError);
+          throw new Error(`리스팅 저장 실패: ${listingError.message}`);
+        } else {
+          console.log('✅ NFT 리스팅 저장 완료:', listingData);
+        }
+
+        console.log('🎉 Supabase 저장 완료! NFT ID:', nftId);
+
+      } catch (dbError) {
+        console.error('❌ 데이터베이스 저장 중 오류:', dbError);
+        // 데이터베이스 저장 실패해도 로컬 저장은 계속 진행
+        console.warn('⚠️ 데이터베이스 저장 실패했지만 로컬 저장은 계속 진행합니다.');
+      }
+
+      // 5. 로컬 스토리지에도 백업 저장
       const finalNFTData = {
         ...nftData,
         blockchain: blockchainResult ? {
@@ -622,21 +696,28 @@ function Create() {
       let blockchainInfo = '';
       if (blockchainResult) {
         if (blockchainResult.skipped) {
-          blockchainInfo = ' (로컬 저장 완료 - 블록체인 민팅은 컨트랙트 배포 후 가능)';
+          if (blockchainResult.reason === '민터 권한 없음') {
+            blockchainInfo = ' (로컬 저장 완료 - 민터 권한이 필요합니다)';
+          } else {
+            blockchainInfo = ' (로컬 저장 완료 - 블록체인 민팅 건너뜀)';
+          }
         } else if (blockchainResult.isPending) {
           blockchainInfo = ' + 블록체인 민팅 진행 중...';
         } else {
           blockchainInfo = ' + 블록체인 민팅 완료!';
         }
       } else if (isConnected && !enableBlockchain) {
-        blockchainInfo = ' (로컬 저장 완료 - 블록체인 민팅은 Web3.Storage 복구 후 가능)';
+        blockchainInfo = ' (로컬 저장 완료 - 블록체인 민팅 비활성화)';
       } else if (isConnected && enableBlockchain) {
-        blockchainInfo = ' + 블록체인 민팅 완료! (로컬 메타데이터 사용)';
+        blockchainInfo = ' + 블록체인 민팅 시도됨';
       } else {
         blockchainInfo = ' (로컬 저장만 완료)';
       }
 
-      alert(`NFT가 성공적으로 등록되었습니다!${compressionInfo}${blockchainInfo}`);
+      // Supabase 저장 상태 메시지
+      const supabaseInfo = savedNftId ? ' + Supabase 데이터베이스 저장 완료!' : ' (Supabase 저장 실패 - 로컬 저장만 완료)';
+
+      alert(`NFT가 성공적으로 등록되었습니다!${compressionInfo}${blockchainInfo}${supabaseInfo}`);
       handleCloseModal();
       
       // 홈페이지로 이동하고 새로고침 이벤트 발생

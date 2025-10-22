@@ -1,82 +1,62 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
-import { handlePaymentFailure } from '../lib/tossPayments';
 
 const Container = styled.div`
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: ${({ theme }) => theme.colors.bg};
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   padding: ${({ theme }) => theme.spacing(2)};
 `;
 
 const Card = styled.div`
-  background: ${({ theme }) => theme.colors.card};
+  background: white;
   border-radius: ${({ theme }) => theme.radius.lg};
   padding: ${({ theme }) => theme.spacing(4)};
   max-width: 500px;
   width: 100%;
   text-align: center;
-  border: 1px solid ${({ theme }) => theme.colors.border};
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
 `;
 
 const FailIcon = styled.div`
-  width: 80px;
-  height: 80px;
-  background: #f44336;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto ${({ theme }) => theme.spacing(3)} auto;
-  font-size: 40px;
-  color: white;
+  font-size: 64px;
+  margin-bottom: ${({ theme }) => theme.spacing(3)};
 `;
 
 const Title = styled.h1`
   font-size: ${({ theme }) => theme.font.size.xxl};
   font-weight: ${({ theme }) => theme.font.weight.bold};
-  color: ${({ theme }) => theme.colors.text};
-  margin: 0 0 ${({ theme }) => theme.spacing(2)} 0;
+  color: #ef4444;
+  margin-bottom: ${({ theme }) => theme.spacing(2)};
 `;
 
 const Message = styled.p`
-  font-size: ${({ theme }) => theme.font.size.md};
+  font-size: ${({ theme }) => theme.font.size.lg};
   color: ${({ theme }) => theme.colors.textSub};
-  margin: 0 0 ${({ theme }) => theme.spacing(3)} 0;
-  line-height: 1.6;
+  margin-bottom: ${({ theme }) => theme.spacing(4)};
 `;
 
-const ErrorInfo = styled.div`
-  background: #fee;
-  border: 1px solid #fcc;
+const ErrorDetails = styled.div`
+  background: #fef2f2;
+  border: 1px solid #fecaca;
   border-radius: ${({ theme }) => theme.radius.md};
   padding: ${({ theme }) => theme.spacing(3)};
-  margin-bottom: ${({ theme }) => theme.spacing(3)};
+  margin-bottom: ${({ theme }) => theme.spacing(4)};
   text-align: left;
 `;
 
-const ErrorItem = styled.div`
-  display: flex;
-  justify-content: space-between;
+const ErrorCode = styled.div`
+  font-weight: ${({ theme }) => theme.font.weight.bold};
+  color: #dc2626;
   margin-bottom: ${({ theme }) => theme.spacing(1)};
-  
-  &:last-child {
-    margin-bottom: 0;
-  }
 `;
 
-const ErrorLabel = styled.span`
+const ErrorMessage = styled.div`
+  color: #7f1d1d;
   font-size: ${({ theme }) => theme.font.size.sm};
-  color: #c33;
-  font-weight: ${({ theme }) => theme.font.weight.medium};
-`;
-
-const ErrorValue = styled.span`
-  font-size: ${({ theme }) => theme.font.size.sm};
-  color: #c33;
 `;
 
 const ButtonGroup = styled.div`
@@ -86,169 +66,69 @@ const ButtonGroup = styled.div`
 `;
 
 const Button = styled.button`
-  padding: ${({ theme }) => theme.spacing(2)} ${({ theme }) => theme.spacing(3)};
+  padding: ${({ theme }) => theme.spacing(2)} ${({ theme }) => theme.spacing(4)};
   border: none;
   border-radius: ${({ theme }) => theme.radius.md};
   font-size: ${({ theme }) => theme.font.size.md};
   font-weight: ${({ theme }) => theme.font.weight.medium};
   cursor: pointer;
-  transition: ${({ theme }) => theme.transition.fast};
-
-  ${({ $variant, theme }) => {
-    if ($variant === 'primary') {
-      return `
-        background: ${theme.colors.primary};
-        color: white;
-        
-        &:hover {
-          background: ${theme.colors.primaryHover};
-        }
-      `;
-    } else {
-      return `
-        background: ${theme.colors.bgLight};
-        color: ${theme.colors.text};
-        border: 1px solid ${theme.colors.border};
-        
-        &:hover {
-          background: ${theme.colors.border};
-        }
-      `;
+  transition: all 0.2s ease;
+  
+  ${({ $variant }) => $variant === 'primary' && `
+    background: #3b82f6;
+    color: white;
+    
+    &:hover {
+      background: #2563eb;
     }
-  }}
-`;
-
-const LoadingSpinner = styled.div`
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 2px solid transparent;
-  border-top: 2px solid currentColor;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-right: ${({ theme }) => theme.spacing(1)};
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
+  `}
+  
+  ${({ $variant }) => $variant === 'secondary' && `
+    background: #f1f5f9;
+    color: #475569;
+    
+    &:hover {
+      background: #e2e8f0;
+    }
+  `}
 `;
 
 function PaymentFail() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [isProcessing, setIsProcessing] = useState(true);
-  const [errorData, setErrorData] = useState(null);
-  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const processError = async () => {
-      try {
-        // URL 파라미터에서 오류 정보 추출
-        const orderId = searchParams.get('orderId');
-        const errorCode = searchParams.get('errorCode');
-        const errorMessage = searchParams.get('errorMessage');
-
-        if (!orderId) {
-          throw new Error('주문 정보가 올바르지 않습니다.');
-        }
-
-        console.log('❌ 결제 실패 처리:', { orderId, errorCode, errorMessage });
-
-        // 결제 실패 처리
-        const processedError = await handlePaymentFailure(
-          orderId, 
-          errorCode || 'UNKNOWN_ERROR', 
-          errorMessage || '알 수 없는 오류가 발생했습니다.'
-        );
-        setErrorData(processedError);
-
-        console.log('✅ 결제 실패 처리 완료:', processedError);
-
-      } catch (error) {
-        console.error('❌ 오류 처리 실패:', error);
-        setError(error.message);
-      } finally {
-        setIsProcessing(false);
-      }
-    };
-
-    processError();
-  }, [searchParams]);
+  const errorCode = searchParams.get('code') || 'UNKNOWN_ERROR';
+  const errorMessage = searchParams.get('message') || '결제 처리 중 오류가 발생했습니다.';
+  const orderId = searchParams.get('orderId');
 
   const handleGoHome = () => {
     navigate('/');
   };
 
   const handleRetry = () => {
-    navigate('/');
+    navigate(-1); // 이전 페이지로 돌아가기
   };
-
-  if (isProcessing) {
-    return (
-      <Container>
-        <Card>
-          <LoadingSpinner />
-          <Title>오류 처리 중...</Title>
-          <Message>오류 정보를 확인하고 있습니다.</Message>
-        </Card>
-      </Container>
-    );
-  }
-
-  if (error) {
-    return (
-      <Container>
-        <Card>
-          <FailIcon>❌</FailIcon>
-          <Title>처리 오류</Title>
-          <Message>{error}</Message>
-          <ButtonGroup>
-            <Button $variant="primary" onClick={handleGoHome}>
-              홈으로 돌아가기
-            </Button>
-          </ButtonGroup>
-        </Card>
-      </Container>
-    );
-  }
 
   return (
     <Container>
       <Card>
         <FailIcon>❌</FailIcon>
-        <Title>결제가 실패했습니다</Title>
-        <Message>
-          결제 처리 중 오류가 발생했습니다.<br />
-          다시 시도하거나 다른 결제 방법을 사용해주세요.
-        </Message>
-
-        {errorData && (
-          <ErrorInfo>
-            <ErrorItem>
-              <ErrorLabel>주문 번호</ErrorLabel>
-              <ErrorValue>{errorData.orderId}</ErrorValue>
-            </ErrorItem>
-            <ErrorItem>
-              <ErrorLabel>오류 코드</ErrorLabel>
-              <ErrorValue>{errorData.errorCode}</ErrorValue>
-            </ErrorItem>
-            <ErrorItem>
-              <ErrorLabel>오류 메시지</ErrorLabel>
-              <ErrorValue>{errorData.errorMessage}</ErrorValue>
-            </ErrorItem>
-            <ErrorItem>
-              <ErrorLabel>발생 시간</ErrorLabel>
-              <ErrorValue>
-                {new Date(errorData.failedAt).toLocaleString('ko-KR')}
-              </ErrorValue>
-            </ErrorItem>
-          </ErrorInfo>
-        )}
-
+        <Title>결제에 실패했습니다</Title>
+        <Message>죄송합니다. 결제 처리 중 문제가 발생했습니다.</Message>
+        
+        <ErrorDetails>
+          <ErrorCode>오류 코드: {errorCode}</ErrorCode>
+          <ErrorMessage>{errorMessage}</ErrorMessage>
+          {orderId && (
+            <div style={{ marginTop: '8px', fontSize: '14px', color: '#6b7280' }}>
+              주문번호: {orderId}
+            </div>
+          )}
+        </ErrorDetails>
+        
         <ButtonGroup>
           <Button $variant="secondary" onClick={handleGoHome}>
-            홈으로 돌아가기
+            홈으로
           </Button>
           <Button $variant="primary" onClick={handleRetry}>
             다시 시도

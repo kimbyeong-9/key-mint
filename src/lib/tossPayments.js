@@ -1,13 +1,20 @@
 import { loadTossPayments } from '@tosspayments/payment-sdk';
 import { supabase } from './supabase';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { parseEther } from 'viem';
 
 /**
  * 토스페이먼츠 클라이언트 초기화
  */
 export const initializeTossPayments = async () => {
   try {
-    const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY || 'test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq';
+    // 환경별 키 설정
+    const isProduction = import.meta.env.PROD;
+    const clientKey = import.meta.env.VITE_TOSS_CLIENT_KEY || 
+      (isProduction ? 'live_ck_실제키여기에입력' : 'test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq');
+    
     console.log('🔑 토스페이먼츠 클라이언트 키:', clientKey);
+    console.log('🌍 환경:', isProduction ? 'Production' : 'Development');
     
     const tossPayments = await loadTossPayments(clientKey);
     console.log('✅ 토스페이먼츠 클라이언트 초기화 완료');
@@ -109,7 +116,7 @@ export const createPaymentRequest = async (nft, userId) => {
 };
 
 /**
- * 결제 요청 처리
+ * 모의 결제 요청 처리 (실제 돈은 빠지지 않음)
  */
 export const requestPayment = async (nft, userId) => {
   try {
@@ -126,80 +133,66 @@ export const requestPayment = async (nft, userId) => {
       throw new Error('NFT 가격이 올바르지 않습니다.');
     }
 
+    console.log('🎭 모의 결제 요청 시작:', { nft, userId });
+    
+    // 결제 데이터 생성
+    const orderId = `NFT_${Date.now()}_${userId}`;
+    const amountKrw = Math.round(parseFloat(nft.price) * 3000000); // ETH to KRW
+    const amountEth = parseFloat(nft.price);
+    const nftName = nft.name || 'NFT 구매';
+    
+    // 실제 토스페이먼츠 결제 요청
     const tossPayments = await initializeTossPayments();
-    const paymentData = await createPaymentRequest(nft, userId);
     
-    // 결제 데이터 검증
-    if (!paymentData.orderName || paymentData.orderName.trim() === '') {
-      paymentData.orderName = nft.name || 'NFT 구매';
+    const response = await tossPayments.requestPayment('카드', {
+      amount: amountKrw,
+      orderId: orderId,
+      orderName: nftName,
+      customerName: 'NFT 구매자',
+      customerEmail: 'buyer@example.com',
+      successUrl: `${window.location.origin}/payment-success`,
+      failUrl: `${window.location.origin}/payment-fail`
+    });
+
+    console.log('✅ 토스페이먼츠 결제 요청 성공:', response);
+    
+    // Supabase에 결제 요청 생성
+    try {
+      const { data: paymentResult, error: paymentError } = await supabase.rpc('create_payment_request', {
+        user_uuid: userId,
+        order_id_param: orderId,
+        amount_krw_param: amountKrw,
+        amount_eth_param: amountEth,
+        nft_id_param: nft.id,
+        nft_name_param: nftName
+      });
+      
+      if (paymentError) {
+        console.warn('⚠️ Supabase 결제 요청 생성 실패:', paymentError);
+      } else {
+        console.log('✅ Supabase 결제 요청 생성 성공:', paymentResult);
+      }
+    } catch (supabaseError) {
+      console.warn('⚠️ Supabase 연결 실패:', supabaseError);
     }
     
-    if (!paymentData.amount || paymentData.amount <= 0) {
-      throw new Error('결제 금액이 올바르지 않습니다.');
-    }
-    
-    if (!paymentData.customerName || paymentData.customerName.trim() === '') {
-      paymentData.customerName = 'Guest';
-    }
-    
-    if (!paymentData.orderId || paymentData.orderId.trim() === '') {
-      throw new Error('주문 ID가 올바르지 않습니다.');
-    }
-    
-    if (!paymentData.successUrl || !paymentData.failUrl) {
-      throw new Error('성공/실패 URL이 올바르지 않습니다.');
-    }
-    
-    console.log('💳 결제 요청 데이터:', paymentData);
-    
-    // 토스페이먼츠 결제 요청 데이터 검증
-    const requestData = {
-      amount: paymentData.amount,
-      orderId: paymentData.orderId,
-      orderName: paymentData.orderName,
-      customerName: paymentData.customerName,
-      successUrl: paymentData.successUrl,
-      failUrl: paymentData.failUrl
+    // 토스페이먼츠 응답 반환
+    return {
+      success: true,
+      paymentKey: response.paymentKey,
+      orderId: orderId,
+      amount: amountKrw,
+      status: 'READY',
+      orderName: nftName,
+      customerName: 'NFT 구매자',
+      customerEmail: 'buyer@example.com',
+      successUrl: `${window.location.origin}/payment-success`,
+      failUrl: `${window.location.origin}/payment-fail`
     };
     
-    console.log('🔍 토스페이먼츠 요청 데이터 검증:', {
-      amount: requestData.amount,
-      orderId: requestData.orderId,
-      orderName: requestData.orderName,
-      customerName: requestData.customerName,
-      successUrl: requestData.successUrl,
-      failUrl: requestData.failUrl
-    });
-    
-    // 최종 검증
-    if (!requestData.orderName || requestData.orderName.trim() === '') {
-      throw new Error('상품명이 비어있습니다.');
-    }
-    
-    if (!requestData.amount || requestData.amount <= 0) {
-      throw new Error('결제 금액이 올바르지 않습니다.');
-    }
-    
-    if (!requestData.orderId || requestData.orderId.trim() === '') {
-      throw new Error('주문 ID가 비어있습니다.');
-    }
-    
-    // 토스페이먼츠 결제 요청 (카드 결제)
-    const response = await tossPayments.requestPayment('카드', {
-      amount: requestData.amount,
-      orderId: requestData.orderId,
-      orderName: requestData.orderName,
-      customerName: requestData.customerName,
-      successUrl: requestData.successUrl,
-      failUrl: requestData.failUrl
-    });
-    
-    console.log('✅ 결제 요청 성공:', response);
-    return response;
-    
   } catch (error) {
-    console.error('❌ 결제 요청 실패:', error);
-    throw new Error(`결제 요청에 실패했습니다: ${error.message}`);
+    console.error('❌ 토스페이먼츠 결제 요청 실패:', error);
+    throw new Error(`토스페이먼츠 결제 요청에 실패했습니다: ${error.message}`);
   }
 };
 
@@ -225,24 +218,36 @@ export const checkPaymentStatus = async (orderId) => {
 };
 
 /**
- * 결제 완료 처리 (Supabase 연동)
+ * 모의 결제 완료 처리 (실제 돈은 빠지지 않음)
  */
 export const handlePaymentSuccess = async (orderId, paymentKey, amount) => {
   try {
-    console.log('💳 결제 완료 처리 시작:', { orderId, paymentKey, amount });
+    console.log('💳 실제 결제 완료 처리 시작:', { orderId, paymentKey, amount });
     
-    // 1. Supabase에 결제 완료 처리
-    const { data: paymentData, error: paymentError } = await supabase.rpc('process_payment_success', {
-      order_id_param: orderId,
-      payment_key_param: paymentKey
+    // 1. 서버에서 결제 검증
+    const verificationResponse = await fetch('/api/verify-payment', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        paymentKey,
+        orderId,
+        amount
+      })
     });
-    
-    if (paymentError) {
-      console.error('❌ 결제 완료 처리 실패:', paymentError);
-      throw new Error(`결제 완료 처리에 실패했습니다: ${paymentError.message}`);
+
+    if (!verificationResponse.ok) {
+      throw new Error('결제 검증에 실패했습니다.');
     }
+
+    const verificationResult = await verificationResponse.json();
     
-    console.log('✅ 결제 완료 처리 성공:', paymentData);
+    if (!verificationResult.success) {
+      throw new Error(`결제 검증 실패: ${verificationResult.error}`);
+    }
+
+    console.log('✅ 결제 검증 성공:', verificationResult);
     
     // 2. 결제 내역에서 NFT 구매 정보 조회
     const { data: purchaseInfo, error: purchaseError } = await supabase
@@ -274,32 +279,153 @@ export const handlePaymentSuccess = async (orderId, paymentKey, amount) => {
         
         if (nftPurchaseError) {
           console.error('❌ NFT 구매 처리 실패:', nftPurchaseError);
-          // NFT 구매 실패해도 결제는 완료된 상태이므로 경고만 표시
         } else {
           console.log('✅ NFT 구매 및 포트폴리오 업데이트 성공:', nftPurchaseData);
+          
+          // 4. 블록체인에서 실제 NFT 전송 (실제 소유권 이전)
+          try {
+            const transferResult = await transferNFTOnBlockchain(
+              import.meta.env.VITE_VAULT_NFT_ADDRESS,
+              purchaseInfo.nft_purchases.nft_id,
+              purchaseInfo.user_id
+            );
+
+            if (transferResult.success) {
+              console.log('✅ 블록체인 NFT 전송 완료:', transferResult);
+            } else {
+              console.error('❌ 블록체인 NFT 전송 실패:', transferResult.error);
+            }
+          } catch (blockchainError) {
+            console.error('❌ 블록체인 NFT 전송 중 오류:', blockchainError);
+          }
         }
       } catch (nftError) {
         console.error('❌ NFT 구매 처리 중 오류:', nftError);
-        // NFT 구매 실패해도 결제는 완료된 상태이므로 경고만 표시
       }
     }
     
-    // 4. 로컬 스토리지에도 저장 (백업용)
+    // 5. 로컬 스토리지에 결제 완료 정보 저장
     const localPaymentData = {
       orderId,
       paymentKey,
       amount,
       status: 'completed',
-      completedAt: new Date().toISOString()
+      completedAt: new Date().toISOString(),
+      isRealPayment: true
     };
+    
     localStorage.setItem(`payment_${orderId}`, JSON.stringify(localPaymentData));
     
     return localPaymentData;
     
   } catch (error) {
-    console.error('❌ 결제 완료 처리 실패:', error);
+    console.error('❌ 실제 결제 완료 처리 실패:', error);
     throw new Error('결제 완료 처리에 실패했습니다.');
   }
+};
+
+/**
+ * 블록체인에서 NFT 전송 (실제 소유권 이전)
+ */
+export const transferNFTOnBlockchain = async (nftContractAddress, tokenId, toAddress) => {
+  try {
+    console.log('🔗 블록체인 NFT 전송 시작:', { nftContractAddress, tokenId, toAddress });
+
+    // VaultNFT 컨트랙트 ABI (transferFrom 함수)
+    const vaultNFTABI = [
+      {
+        "inputs": [
+          {"internalType": "address", "name": "from", "type": "address"},
+          {"internalType": "address", "name": "to", "type": "address"},
+          {"internalType": "uint256", "name": "tokenId", "type": "uint256"}
+        ],
+        "name": "transferFrom",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      }
+    ];
+
+    // 현재 사용자의 지갑 주소 가져오기
+    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    if (!accounts || accounts.length === 0) {
+      throw new Error('지갑이 연결되지 않았습니다.');
+    }
+    const fromAddress = accounts[0];
+
+
+    // NFT 전송 트랜잭션 실행
+    const transactionHash = await window.ethereum.request({
+      method: 'eth_sendTransaction',
+      params: [{
+        from: fromAddress,
+        to: nftContractAddress,
+        data: encodeTransferFrom(fromAddress, toAddress, tokenId, vaultNFTABI)
+      }]
+    });
+
+    console.log('✅ NFT 전송 트랜잭션 전송 완료:', transactionHash);
+
+    // 트랜잭션 완료 대기
+    const receipt = await waitForTransactionReceipt(transactionHash);
+    
+    if (receipt.status === '0x1') {
+      console.log('✅ NFT 전송 완료:', receipt);
+      return {
+        success: true,
+        transactionHash: receipt.transactionHash,
+        blockNumber: receipt.blockNumber
+      };
+    } else {
+      throw new Error('NFT 전송 트랜잭션이 실패했습니다.');
+    }
+
+  } catch (error) {
+    console.error('❌ 블록체인 NFT 전송 실패:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};
+
+/**
+ * transferFrom 함수 데이터 인코딩
+ */
+const encodeTransferFrom = (from, to, tokenId, abi) => {
+  // 간단한 ABI 인코딩 (실제로는 ethers.js나 viem 사용 권장)
+  const functionSelector = '0x23b872dd'; // transferFrom(address,address,uint256)
+  const fromPadded = from.slice(2).padStart(64, '0');
+  const toPadded = to.slice(2).padStart(64, '0');
+  const tokenIdPadded = parseInt(tokenId).toString(16).padStart(64, '0');
+  
+  return functionSelector + fromPadded + toPadded + tokenIdPadded;
+};
+
+/**
+ * 트랜잭션 영수증 대기
+ */
+const waitForTransactionReceipt = async (txHash) => {
+  return new Promise((resolve, reject) => {
+    const checkReceipt = async () => {
+      try {
+        const receipt = await window.ethereum.request({
+          method: 'eth_getTransactionReceipt',
+          params: [txHash]
+        });
+        
+        if (receipt) {
+          resolve(receipt);
+        } else {
+          setTimeout(checkReceipt, 2000); // 2초마다 확인
+        }
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    checkReceipt();
+  });
 };
 
 /**

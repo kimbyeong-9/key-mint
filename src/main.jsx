@@ -11,6 +11,9 @@ import { config } from './lib/wagmi.js';
 import GlobalStyle from './styles/GlobalStyle.js';
 import theme from './styles/theme.js';
 
+// WebSocket 오류 수정 스크립트 로드
+import './lib/websocket-fix.js';
+
 // RainbowKit 스타일
 import '@rainbow-me/rainbowkit/styles.css';
 // RainbowKit 커스텀 스타일 (지갑 주소 숨기기)

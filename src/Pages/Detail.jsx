@@ -5,6 +5,8 @@ import { useAccount } from 'wagmi';
 import BadgeNFT from '../components/BadgeNFT';
 import PaymentModal from '../components/PaymentModal';
 import { useNFTDetail } from '../hooks/useNFTDetail';
+import { useNFTListing } from '../hooks/useNFTListing';
+import { useUser } from '../contexts/UserContext';
 import { formatEther, shortenAddress, formatDate } from '../lib/format';
 
 const Container = styled.div`

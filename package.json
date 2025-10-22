@@ -6,10 +6,14 @@
     "dev": "vite --open /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome",
     "dev:firefox": "vite --open",
     "dev:default": "vite --open",
+    "dev:no-hmr": "VITE_HMR=false vite --open /Applications/Google\\ Chrome.app/Contents/MacOS/Google\\ Chrome",
+    "dev:restart": "node scripts/restart-dev.js",
+    "dev:clean": "rm -rf node_modules/.vite && npm run dev",
     "build": "vite build",
     "preview": "vite preview",
     "deploy:vault-nft": "hardhat run scripts/deploy-vault-nft.js --network sepolia",
-    "deploy:vault-nft:local": "hardhat run scripts/deploy-vault-nft.js --network localhost"
+    "deploy:vault-nft:local": "hardhat run scripts/deploy-vault-nft.js --network localhost",
+    "hardhat": "^2.26.0"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.9",

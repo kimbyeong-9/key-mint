@@ -149,6 +149,7 @@ function NFTCard({ nft }) {
   const navigate = useNavigate();
   const { isConnected } = useAccount();
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const handleClick = () => {
     if (isConnected) {
@@ -158,17 +159,23 @@ function NFTCard({ nft }) {
     }
   };
 
+  // 이미지 에러 처리
+  const handleImageError = () => {
+    console.warn('⚠️ 이미지 로딩 실패:', nft.image);
+    setImageError(true);
+  };
 
   // 이미지 URL 처리 - Supabase Storage URL 또는 IPFS URL
-  const imageUrl = nft.image ? 
-    (nft.image.startsWith('http') ? nft.image : ipfsToHttp(nft.image)) : 
-    '/placeholder-nft.png';
+  const imageUrl = imageError ? '/placeholder-nft.png' : 
+    (nft.image ? 
+      (nft.image.startsWith('http') ? nft.image : ipfsToHttp(nft.image)) : 
+      '/placeholder-nft.png');
 
   return (
     <>
       <Card onClick={handleClick}>
         <ImageContainer>
-          <Image src={imageUrl} alt={nft.name} loading="lazy" />
+          <Image src={imageUrl} alt={nft.name} loading="lazy" onError={handleImageError} />
           <BadgeContainer>
             <BadgeNFT />
           </BadgeContainer>

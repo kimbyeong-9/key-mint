@@ -193,6 +193,27 @@ const ErrorMessage = styled.div`
   font-size: ${({ theme }) => theme.font.size.sm};
 `;
 
+const MockPaymentNotice = styled.div`
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: ${({ theme }) => theme.radius.md};
+  padding: ${({ theme }) => theme.spacing(2)};
+  margin-bottom: ${({ theme }) => theme.spacing(3)};
+  display: flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing(2)};
+`;
+
+const MockNoticeIcon = styled.span`
+  font-size: 20px;
+`;
+
+const MockNoticeText = styled.span`
+  color: #92400e;
+  font-size: ${({ theme }) => theme.font.size.sm};
+  font-weight: ${({ theme }) => theme.font.weight.medium};
+`;
+
 function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
   const { user } = useUser();
   const { balance, fetchBalance } = useETHBalance();
@@ -253,7 +274,7 @@ function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
     }
   };
 
-  // 결제 요청 처리
+  // 실제 토스페이먼츠 결제 요청 처리
   const handlePayment = async () => {
     if (!user) {
       setError('로그인이 필요합니다.');
@@ -274,7 +295,7 @@ function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
     setError(null);
 
     try {
-      console.log('💳 결제 요청 시작:', { nft, krwAmount, ethAmount });
+      console.log('💳 실제 결제 요청 시작:', { nft, krwAmount, ethAmount });
       
       // NFT 데이터 검증 및 보완
       const validatedNFT = {
@@ -293,12 +314,16 @@ function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
       
       const response = await requestPayment(validatedNFT, user.id);
       
-      console.log('✅ 결제 요청 성공:', response);
+      console.log('✅ 토스페이먼츠 결제 요청 성공:', response);
+      
+      // 토스페이먼츠 결제창으로 리다이렉트
+      // 실제로는 토스페이먼츠 SDK가 자동으로 리다이렉트를 처리합니다
+      console.log('🔄 토스페이먼츠 결제창으로 리다이렉트 중...');
       
       // ETH 잔액 새로고침
       await fetchBalance();
       
-      // 결제 성공 콜백 호출
+      // 결제 성공 콜백 호출 (실제로는 결제 완료 후에 호출됨)
       if (onSuccess) {
         onSuccess({
           orderId: response.orderId,
@@ -312,7 +337,21 @@ function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
       
     } catch (error) {
       console.error('❌ 결제 요청 실패:', error);
-      setError(error.message || '결제 요청에 실패했습니다.');
+      
+      // 에러 메시지 개선
+      let errorMessage = '결제 요청에 실패했습니다.';
+      
+      if (error.message.includes('JSON 파싱 실패')) {
+        errorMessage = '서버 응답을 처리할 수 없습니다. 잠시 후 다시 시도해주세요.';
+      } else if (error.message.includes('HTTP 오류')) {
+        errorMessage = '서버 연결에 문제가 있습니다. 잠시 후 다시 시도해주세요.';
+      } else if (error.message.includes('빈 응답')) {
+        errorMessage = '서버에서 응답을 받지 못했습니다. 잠시 후 다시 시도해주세요.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

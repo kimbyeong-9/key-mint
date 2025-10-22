@@ -24,10 +24,12 @@ export default {
     success: "#2ecc71",     // 성공
     danger: "#ff6b6b",      // 에러/위험
     warning: "#f39c12",     // 경고
+    info: "#3498db",        // 정보
 
     // 호버 상태
     hover: "#003d7a",       // primary 호버
-    hoverSecondary: "#d98d67" // secondary 호버
+    hoverSecondary: "#d98d67", // secondary 호버
+    warningHover: "#d97706"  // warning 호버
   },
 
   // 폰트

@@ -7,28 +7,30 @@ export default defineConfig({
   server: {
     port: 3001,
     open: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    // 크롬을 기본 브라우저로 설정
-    host: true,
-    hmr: {
-      protocol: 'ws',
-      host: 'localhost',
-      port: 3001,
-      clientPort: 3001,
-      timeout: 60000, // 타임아웃 증가
-      overlay: true,  // 오류 오버레이 활성화
-      reconnect: true // 자동 재연결 활성화
-    },
-    // WebSocket 연결 안정성을 위한 설정
+    host: '0.0.0.0', // 모든 네트워크 인터페이스에서 접근 가능
+    strictPort: true, // 포트가 사용 중이면 오류 발생
+    hmr: false, // HMR 완전 비활성화 (WebSocket 오류 근본 해결)
     watch: {
-      usePolling: false,
-      interval: 100,
-      ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**']
+      usePolling: true, // 파일 시스템 폴링 사용
+      interval: 1000, // 폴링 간격 증가
+      ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/.next/**']
     },
-    // WebSocket 연결 재시도 설정
-    ws: {
-      port: 3001,
-      host: 'localhost',
-      reconnect: true // WebSocket 재연결 활성화
+    cors: true, // CORS 활성화
+    origin: 'http://localhost:3001' // 명시적 origin 설정
+  },
+  build: {
+    sourcemap: false, // 소스맵 비활성화로 빌드 속도 향상
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          supabase: ['@supabase/supabase-js'],
+          wagmi: ['wagmi', 'viem']
+        }
+      }
     }
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', '@supabase/supabase-js', 'wagmi', 'viem']
   }
 })

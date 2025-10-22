@@ -23,34 +23,57 @@ export function useNFTDetail(nftId) {
       setLoading(true);
       setError(null);
 
-      console.log('🔍 NFT 상세 정보 조회 시작:', nftId);
+      console.log('🔍 Supabase에서 NFT 상세 정보 조회 시작:', nftId);
 
-      // 로컬 스토리지에서 NFT 데이터 조회
-      const localNFTs = JSON.parse(localStorage.getItem('draftNFTs') || '[]');
-      
-      console.log('📦 로컬 스토리지 전체 NFT 목록:');
-      localNFTs.forEach((nft, index) => {
-        console.log(`${index + 1}. ID: ${nft.id}, Name: ${nft.name}`);
-      });
-      
-      console.log('🔍 찾는 NFT ID:', nftId);
-      console.log('🔍 ID 타입:', typeof nftId);
-      
-      const foundNFT = localNFTs.find(nft => {
-        // ID 타입 변환하여 비교 (문자열 ↔ 숫자)
-        const nftIdStr = String(nft.id);
-        const searchIdStr = String(nftId);
-        console.log(`비교: ${nftIdStr} === ${searchIdStr} (${nftIdStr === searchIdStr})`);
-        return nftIdStr === searchIdStr;
-      });
+      // 1. NFT 메타데이터 조회
+      const { data: metadataData, error: metadataError } = await supabase
+        .from('nft_metadata')
+        .select('*')
+        .eq('nft_id', nftId)
+        .single();
 
-      if (!foundNFT) {
-        console.log('❌ NFT를 찾을 수 없음. 사용 가능한 ID들:', localNFTs.map(nft => nft.id));
-        throw new Error('해당 NFT를 찾을 수 없습니다.');
+      if (metadataError) {
+        console.error('❌ NFT 메타데이터 조회 실패:', metadataError);
+        throw new Error(`NFT 메타데이터 조회 실패: ${metadataError.message}`);
       }
 
-      console.log('✅ NFT 데이터 조회 성공:', foundNFT);
-      setNft(foundNFT);
+      console.log('📊 NFT 메타데이터 조회 성공:', metadataData);
+
+      // 2. NFT 리스팅 조회
+      const { data: listingData, error: listingError } = await supabase
+        .from('nft_listings')
+        .select('*')
+        .eq('nft_id', nftId)
+        .eq('is_active', true)
+        .single();
+
+      if (listingError) {
+        console.warn('⚠️ NFT 리스팅 조회 실패 (선택사항):', listingError);
+      }
+
+      console.log('📊 NFT 리스팅 조회 성공:', listingData);
+
+      // 3. 데이터 변환 (Supabase 형식을 앱 형식으로)
+      const transformedNFT = {
+        id: metadataData.nft_id,
+        name: metadataData.name,
+        description: metadataData.description,
+        image: metadataData.image_url,
+        price: listingData?.price_eth?.toString() || '0.1',
+        priceKrw: listingData?.price_krw || 300000,
+        attributes: metadataData.attributes || [],
+        creator: metadataData.creator_address,
+        createdAt: metadataData.created_at,
+        isActive: listingData?.is_active || false,
+        // 추가 필드들
+        tokenId: metadataData.token_id,
+        transactionHash: metadataData.transaction_hash,
+        blockNumber: metadataData.block_number,
+        metadataUri: metadataData.metadata_uri
+      };
+
+      console.log('✅ NFT 상세 정보 조회 성공:', transformedNFT);
+      setNft(transformedNFT);
 
     } catch (error) {
       console.error('❌ NFT 상세 정보 조회 실패:', error);

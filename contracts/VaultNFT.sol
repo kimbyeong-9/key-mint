@@ -110,4 +110,13 @@ contract VaultNFT is ERC721URIStorage, Ownable {
     function isMinter(address account) external view returns (bool) {
         return minters[account];
     }
+
+    /**
+     * @dev 모든 NFT에 대한 승인 설정 (ERC721 표준)
+     * @param operator 승인할 주소
+     * @param approved 승인 여부
+     */
+    function setApprovalForAll(address operator, bool approved) public virtual override {
+        _setApprovalForAll(msg.sender, operator, approved);
+    }
 }
