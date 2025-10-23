@@ -1,0 +1,30 @@
+const ethers = hre.ethers;
+npx hardhat console --network localhost
+const ethers = hre.ethers;
+console.log(owner.address);
+const [owner, addr1] = await ethers.getSigners();
+const ethers = hre.ethers;
+npx hardhat console --network localhost
+const ethers = hre.ethers;
+const [owner, addr1] = await ethers.getSigners();
+const { ethers } = hre;
+const [owner, addr1] = await ethers.getSigners();
+const { ethers } = await import("hardhat");
+const [owner, addr1] = await ethers.getSigners();
+const { ethers } = require("hardhat");
+const [owner, addr1] = await ethers.getSigners();
+const { ethers } = require("hardhat");
+console.log(owner.address);
+const [owner, addr1] = await ethers.getSigners();
+const { ethers } = require("hardhat");
+console.log(owner.address);
+const [owner, addr1] = await ethers.getSigners();
+});
+  value: ethers.parseEther("10")
+  to: 0x86eaab9f621284d6a720c9b9705ec35af2625a4c,
+await owner.sendTransaction({
+const [owner, addr1] = await ethers.getSigners();
+});
+  value: ethers.parseEther("10")
+  to: "복사한계정주소",
+await owner.sendTransaction({it ethers.getSigners();

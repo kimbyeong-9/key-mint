@@ -9,6 +9,45 @@ import { uploadOptimizedNFTImage, supabase } from '../lib/supabase';
 import { useBlockchainMint } from '../hooks/useBlockchain';
 import { convertKRWToETH, convertETHToKRW } from '../lib/tossPayments';
 
+// 네트워크 강제 전환 함수
+const switchToLocalhost = async () => {
+  if (typeof window.ethereum !== 'undefined') {
+    try {
+      // Localhost 8545 네트워크로 전환 시도
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: '0x7A69' }], // 31337 in hex
+      });
+      console.log('✅ 네트워크가 Localhost 8545로 전환되었습니다.');
+    } catch (switchError) {
+      // 네트워크가 없으면 추가
+      if (switchError.code === 4902) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: '0x7A69',
+              chainName: 'Localhost 8545',
+              rpcUrls: ['http://127.0.0.1:8545'],
+              nativeCurrency: {
+                name: 'Ethereum',
+                symbol: 'ETH',
+                decimals: 18
+              },
+              blockExplorerUrls: ['http://localhost:8545']
+            }]
+          });
+          console.log('✅ Localhost 8545 네트워크가 추가되고 전환되었습니다.');
+        } catch (addError) {
+          console.error('❌ 네트워크 추가 실패:', addError);
+        }
+      } else {
+        console.error('❌ 네트워크 전환 실패:', switchError);
+      }
+    }
+  }
+};
+
 const Container = styled.div`
   max-width: 800px;
   margin: 0 auto;
@@ -349,6 +388,14 @@ function Create() {
   const { user } = useUser();
   const [isModalOpen, setIsModalOpen] = useState(false);
   
+  // 네트워크 전환 효과
+  useEffect(() => {
+    if (isConnected) {
+      // 지갑이 연결되면 자동으로 Localhost 네트워크로 전환 시도
+      switchToLocalhost();
+    }
+  }, [isConnected]);
+  
   // 블록체인 민팅 훅
   const { 
     mintNFT, 
@@ -575,6 +622,12 @@ function Create() {
     if (!validateForm()) {
       return;
     }
+
+    // 네트워크 전환 시도
+    await switchToLocalhost();
+    
+    // 잠시 대기 (네트워크 전환 시간)
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     setIsSubmitting(true);
     setUploadProgress(0);

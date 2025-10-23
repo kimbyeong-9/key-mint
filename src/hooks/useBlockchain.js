@@ -162,11 +162,11 @@ export function useBlockchainMint() {
       const metadata = createNFTMetadata(nftData);
       console.log('📝 메타데이터 생성 완료:', metadata);
 
-      // 2. IPFS에 메타데이터 업로드 (Web3.Storage 유지보수로 인해 임시 비활성화)
+      // 2. IPFS에 메타데이터 업로드
       let metadataURI;
       
-      // Web3.Storage 상태 확인 (임시 비활성화)
-      const useIPFS = false; // IPFS 임시 비활성화 (토큰 없이도 작동하도록)
+      // Web3.Storage 상태 확인 (토큰 없이도 작동하도록 임시 비활성화)
+      const useIPFS = false; // IPFS 임시 비활성화 (토큰 설정 전까지)
       
       if (useIPFS) {
         try {
@@ -195,16 +195,18 @@ export function useBlockchainMint() {
         };
       }
       
-      writeContract({
+      const txHash = await writeContract({
         address: VAULT_NFT_ADDRESS,
         abi: VAULT_NFT_ABI,
         functionName: 'mint',
         args: [address, metadataURI],
       });
 
+      console.log('✅ 블록체인 트랜잭션 전송 완료:', txHash);
+
       return {
         metadataURI,
-        transactionHash: hash,
+        transactionHash: txHash,
         isPending: true,
         contractAddress: VAULT_NFT_ADDRESS
       };
