@@ -5,7 +5,6 @@ import { useAccount } from 'wagmi';
 import { ConnectButton, useConnectModal } from '@rainbow-me/rainbowkit';
 import { useUser } from '../contexts/UserContext';
 import { useWalletConnection } from '../hooks/useWalletConnection';
-import bitcoinWalletIcon from '../images/bitcoin-wallet.png';
 
 const HeaderContainer = styled.header`
   width: 100%;
@@ -780,7 +779,7 @@ function Header() {
                 aria-label="지갑 연결"
                 title="지갑 연결"
               >
-                <img src={bitcoinWalletIcon} alt="지갑 연결" />
+                👛
               </WalletButton>
             )}
 
