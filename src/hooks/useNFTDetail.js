@@ -63,13 +63,19 @@ export function useNFTDetail(nftId) {
         priceKrw: listingData?.price_krw || 300000,
         attributes: metadataData.attributes || [],
         creator: metadataData.creator_address,
+        creatorId: metadataData.creator_address,
         createdAt: metadataData.created_at,
+        status: metadataData.status || 'active',
         isActive: listingData?.is_active || false,
-        // 추가 필드들
+        // 블록체인 정보
         tokenId: metadataData.token_id,
         transactionHash: metadataData.transaction_hash,
         blockNumber: metadataData.block_number,
-        metadataUri: metadataData.metadata_uri
+        metadataUri: metadataData.metadata_uri,
+        // 이미지 메타데이터
+        imageMetadata: metadataData.image_metadata || null,
+        // 최적화 정보
+        optimization: metadataData.optimization || null
       };
 
       console.log('✅ NFT 상세 정보 조회 성공:', transformedNFT);

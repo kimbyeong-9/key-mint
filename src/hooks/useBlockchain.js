@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi';
 import { uploadMetadataToIPFS, createNFTMetadata } from '../lib/ipfs';
 import { supabase } from '../lib/supabase';
 
@@ -69,17 +69,31 @@ const VAULT_NFT_ABI = [
   }
 ];
 
-// 컨트랙트 주소 (Sepolia 테스트넷에 배포됨)
-const VAULT_NFT_ADDRESS = import.meta.env.VITE_VAULT_NFT_ADDRESS || '0x5FbDB2315678afecb367f032d93F642f64180aa3';
+// 네트워크별 컨트랙트 주소
+const CONTRACT_ADDRESSES = {
+  31337: import.meta.env.VITE_VAULT_NFT_ADDRESS || '0x5FbDB2315678afecb367f032d93F642f64180aa3', // Localhost
+  11155111: import.meta.env.VITE_VAULT_NFT_ADDRESS_SEPOLIA || null, // Sepolia (배포 후 설정)
+};
+
+/**
+ * 현재 네트워크의 컨트랙트 주소 가져오기
+ */
+function getContractAddress(chainId) {
+  return CONTRACT_ADDRESSES[chainId] || CONTRACT_ADDRESSES[31337]; // 기본값은 localhost
+}
 
 /**
  * 블록체인 NFT 민팅 훅
  */
 export function useBlockchainMint() {
   const { address, isConnected } = useAccount();
+  const chainId = useChainId();
   const [isMinting, setIsMinting] = useState(false);
   const [mintError, setMintError] = useState(null);
   const [mintSuccess, setMintSuccess] = useState(false);
+
+  // 현재 네트워크의 컨트랙트 주소
+  const VAULT_NFT_ADDRESS = getContractAddress(chainId);
 
   const { writeContract, data: hash, error: writeError } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({

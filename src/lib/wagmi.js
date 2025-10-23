@@ -7,6 +7,9 @@ import { createConfig } from 'wagmi';
 const rawProjectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
 const projectId = rawProjectId && rawProjectId !== 'demo_project_id_for_development' ? rawProjectId : undefined;
 
+// Infura API 키
+const INFURA_API_KEY = import.meta.env.VITE_INFURA_API_KEY || '844d7f2e5572493b86e8307eacd23f72';
+
 // Localhost 네트워크 설정 (Hardhat 로컬 노드용)
 const localhost = {
   id: 31337,
@@ -33,8 +36,34 @@ const localhost = {
   testnet: true,
 };
 
-// 허용 지갑만 등록 (MetaMask, Base Account) - 개발 환경에서는 Localhost 사용
-const chains = [localhost];
+// Sepolia 테스트넷 설정
+const sepolia = {
+  id: 11155111,
+  name: 'Sepolia',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'Ethereum',
+    symbol: 'ETH',
+  },
+  rpcUrls: {
+    default: {
+      http: [`https://sepolia.infura.io/v3/${INFURA_API_KEY}`],
+    },
+    public: {
+      http: [`https://sepolia.infura.io/v3/${INFURA_API_KEY}`],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: 'Etherscan',
+      url: 'https://sepolia.etherscan.io'
+    },
+  },
+  testnet: true,
+};
+
+// 허용 지갑만 등록 (MetaMask, Coinbase) - Localhost와 Sepolia 지원
+const chains = [localhost, sepolia];
 const appName = 'Key Mint - NFT Marketplace';
 
 // RainbowKit이 내부에서 옵션을 주입할 수 있도록 wallet 팩토리 함수를 그대로 전달
@@ -49,17 +78,22 @@ const allowedConnectors = connectorsForWallets([
   },
 ], rkOptions);
 
-// Wagmi 설정 (Localhost 네트워크 사용)
+// Wagmi 설정 (Localhost와 Sepolia 네트워크 모두 지원)
 export const config = createConfig({
-  chains: [localhost],
+  chains: [localhost, sepolia],
   transports: {
     [localhost.id]: http('http://127.0.0.1:8545'),
+    [sepolia.id]: http(`https://sepolia.infura.io/v3/${INFURA_API_KEY}`),
   },
   connectors: allowedConnectors,
   ssr: false,
 });
 
-// 현재 사용 중인 체인 (개발 환경에서는 Localhost 사용)
+// 네트워크 정보 export
+export const LOCALHOST = localhost;
+export const SEPOLIA = sepolia;
+
+// 기본 체인 (개발 환경에서는 Localhost 사용)
 export const CURRENT_CHAIN = localhost;
 export const CHAIN_ID = localhost.id;
 

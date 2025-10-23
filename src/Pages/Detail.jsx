@@ -1,13 +1,43 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { useAccount } from 'wagmi';
+import { useAccount, useChainId } from 'wagmi';
 import BadgeNFT from '../components/BadgeNFT';
 import PaymentModal from '../components/PaymentModal';
 import { useNFTDetail } from '../hooks/useNFTDetail';
 import { useNFTListing } from '../hooks/useNFTListing';
 import { useUser } from '../contexts/UserContext';
 import { formatEther, shortenAddress, formatDate } from '../lib/format';
+
+// 네트워크별 Etherscan URL
+const EXPLORER_URLS = {
+  31337: 'http://localhost:8545', // Localhost (Hardhat)
+  11155111: 'https://sepolia.etherscan.io', // Sepolia
+};
+
+// 네트워크별 이름
+const NETWORK_NAMES = {
+  31337: 'Localhost 8545 (Hardhat)',
+  11155111: 'Sepolia Testnet',
+};
+
+// 네트워크별 컨트랙트 주소
+const CONTRACT_ADDRESSES = {
+  31337: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+  11155111: import.meta.env.VITE_VAULT_NFT_ADDRESS_SEPOLIA || null,
+};
+
+function getExplorerUrl(chainId) {
+  return EXPLORER_URLS[chainId] || EXPLORER_URLS[31337];
+}
+
+function getNetworkName(chainId) {
+  return NETWORK_NAMES[chainId] || 'Unknown Network';
+}
+
+function getContractAddress(chainId) {
+  return CONTRACT_ADDRESSES[chainId] || CONTRACT_ADDRESSES[31337];
+}
 
 const Container = styled.div`
   max-width: 1200px;
@@ -281,6 +311,12 @@ function Detail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { address, isConnected } = useAccount();
+  const chainId = useChainId();
+
+  // 현재 네트워크 정보
+  const explorerUrl = getExplorerUrl(chainId);
+  const networkName = getNetworkName(chainId);
+  const contractAddress = getContractAddress(chainId);
 
   // 우리의 NFT 시스템에서 데이터 조회
   const { nft, loading, error, refetch } = useNFTDetail(id);
@@ -460,6 +496,88 @@ function Detail() {
               </>
             )}
           </DetailBox>
+
+          {/* 블록체인 정보 섹션 */}
+          {(nft.tokenId || nft.transactionHash || nft.metadataUri) && (
+            <DetailBox>
+              <DetailTitle>⛓️ 블록체인 정보</DetailTitle>
+
+              {nft.tokenId && (
+                <DetailItem>
+                  <DetailLabel>토큰 ID</DetailLabel>
+                  <DetailValue>#{nft.tokenId}</DetailValue>
+                </DetailItem>
+              )}
+
+              {nft.transactionHash && (
+                <DetailItem>
+                  <DetailLabel>트랜잭션 해시</DetailLabel>
+                  <DetailValue
+                    style={{
+                      color: '#6366f1',
+                      cursor: chainId !== 31337 ? 'pointer' : 'default',
+                      textDecoration: chainId !== 31337 ? 'underline' : 'none'
+                    }}
+                    onClick={() => {
+                      if (chainId !== 31337) {
+                        window.open(`${explorerUrl}/tx/${nft.transactionHash}`, '_blank');
+                      }
+                    }}
+                    title={chainId !== 31337 ? "클릭하여 Etherscan에서 확인" : "Localhost - 탐색기 없음"}
+                  >
+                    {shortenAddress(nft.transactionHash)}
+                  </DetailValue>
+                </DetailItem>
+              )}
+
+              {contractAddress && (
+                <DetailItem>
+                  <DetailLabel>컨트랙트 주소</DetailLabel>
+                  <DetailValue
+                    style={{
+                      color: '#6366f1',
+                      cursor: chainId !== 31337 ? 'pointer' : 'default',
+                      textDecoration: chainId !== 31337 ? 'underline' : 'none'
+                    }}
+                    onClick={() => {
+                      if (chainId !== 31337) {
+                        window.open(`${explorerUrl}/address/${contractAddress}`, '_blank');
+                      }
+                    }}
+                    title={chainId !== 31337 ? "클릭하여 Etherscan에서 확인" : "Localhost - 탐색기 없음"}
+                  >
+                    {shortenAddress(contractAddress)}
+                  </DetailValue>
+                </DetailItem>
+              )}
+
+              {nft.blockNumber && (
+                <DetailItem>
+                  <DetailLabel>블록 번호</DetailLabel>
+                  <DetailValue>#{nft.blockNumber}</DetailValue>
+                </DetailItem>
+              )}
+
+              {nft.metadataUri && (
+                <DetailItem>
+                  <DetailLabel>메타데이터</DetailLabel>
+                  <DetailValue>On-chain 저장됨 ✓</DetailValue>
+                </DetailItem>
+              )}
+
+              <DetailItem>
+                <DetailLabel>네트워크</DetailLabel>
+                <DetailValue>{networkName}</DetailValue>
+              </DetailItem>
+
+              <DetailItem>
+                <DetailLabel>민팅 상태</DetailLabel>
+                <DetailValue style={{ color: '#10b981', fontWeight: 'bold' }}>
+                  {nft.transactionHash ? '✓ 블록체인 민팅 완료' : '로컬 저장'}
+                </DetailValue>
+              </DetailItem>
+            </DetailBox>
+          )}
         </InfoSection>
       </Content>
 
