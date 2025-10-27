@@ -99,11 +99,11 @@ export const CHAIN_ID = localhost.id;
 
 // 안내: 환경 변수 미설정 시 지갑 초기화를 생략하고 로컬 설정으로만 동작합니다.
 if (!projectId) {
-  console.warn(
-    '⚠️ WalletConnect Project ID가 설정되지 않았습니다.\n' +
-    '1) https://cloud.walletconnect.com 에서 Project ID를 발급\n' +
-    '2) .env.local 의 VITE_WALLETCONNECT_PROJECT_ID 값으로 설정\n' +
-    '3) Allowed Origins 에 http://localhost:3000 추가 후 dev 서버 재시작\n' +
-    '현재는 Localhost 8545 네트워크로 설정되어 있습니다.'
+  // WalletConnect 없이도 MetaMask는 정상 작동하므로 경고 수준을 낮춤
+  console.log(
+    'ℹ️ WalletConnect 미설정 - MetaMask/Coinbase Wallet은 정상 작동합니다.\n' +
+    '   다른 지갑(Trust Wallet, Rainbow 등)을 사용하려면:\n' +
+    '   1) https://cloud.walletconnect.com 에서 Project ID 발급\n' +
+    '   2) .env.local 에 VITE_WALLETCONNECT_PROJECT_ID 설정'
   );
 }

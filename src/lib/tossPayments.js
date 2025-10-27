@@ -143,15 +143,22 @@ export const requestPayment = async (nft, userId) => {
     // 실제 토스페이먼츠 결제 요청
     const tossPayments = await initializeTossPayments();
     
-    const response = await tossPayments.requestPayment('카드', {
+    console.log('🔄 토스페이먼츠 결제 요청 생성 중...', {
       amount: amountKrw,
+      orderId: orderId,
+      orderName: nftName
+    });
+    
+    const response = await tossPayments.requestPayment('카드', {
+      amount: Math.max(amountKrw, 100),
       orderId: orderId,
       orderName: nftName,
       customerName: 'NFT 구매자',
-      customerEmail: 'buyer@example.com',
       successUrl: `${window.location.origin}/payment-success`,
       failUrl: `${window.location.origin}/payment-fail`
     });
+    
+    console.log('✅ 토스페이먼츠 결제 응답:', response);
 
     console.log('✅ 토스페이먼츠 결제 요청 성공:', response);
     

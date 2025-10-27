@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAccount, useChainId } from 'wagmi';
 import BadgeNFT from '../components/BadgeNFT';
-import PaymentModal from '../components/PaymentModal';
+import MockPaymentModal from '../components/MockPaymentModal';
 import { useNFTDetail } from '../hooks/useNFTDetail';
 import { useNFTListing } from '../hooks/useNFTListing';
 import { useUser } from '../contexts/UserContext';
@@ -311,6 +311,7 @@ function Detail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { address, isConnected } = useAccount();
+  const { user } = useUser();
   const chainId = useChainId();
 
   // 현재 네트워크 정보
@@ -386,7 +387,20 @@ function Detail() {
     );
   }
 
-  const imageUrl = nft.image || '/placeholder-nft.png';
+  // 이미지 URL 처리 - Supabase Storage 이미지 변환 적용
+  const getOptimizedImageUrl = (url) => {
+    if (!url) return '/placeholder-nft.png';
+    
+    // Supabase Storage URL인 경우 변환 파라미터 추가
+    if (url.includes('supabase.co/storage')) {
+      // 상세 페이지 이미지: 800x800 크기로 최적화
+      return `${url}?width=800&height=800&quality=85&format=webp`;
+    }
+    
+    return url;
+  };
+
+  const imageUrl = nft.image ? getOptimizedImageUrl(nft.image) : '/placeholder-nft.png';
 
   return (
     <Container>
@@ -593,13 +607,16 @@ function Detail() {
         </ImageModal>
       )}
 
-      {/* 토스페이먼츠 결제 모달 */}
-      <PaymentModal
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        nft={nft}
-        onSuccess={handlePaymentSuccess}
-      />
+      {/* 카드 정보 직접 입력 결제 모달 */}
+      {user && (
+        <MockPaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          nft={nft}
+          userId={user.id}
+          onPaymentSuccess={handlePaymentSuccess}
+        />
+      )}
     </Container>
   );
 }

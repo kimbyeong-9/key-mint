@@ -328,24 +328,11 @@ function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
       
       console.log('✅ 토스페이먼츠 결제 요청 성공:', response);
       
-      // 토스페이먼츠 결제창으로 리다이렉트
-      // 실제로는 토스페이먼츠 SDK가 자동으로 리다이렉트를 처리합니다
-      console.log('🔄 토스페이먼츠 결제창으로 리다이렉트 중...');
-      
-      // ETH 잔액 새로고침
-      await fetchBalance();
-      
-      // 결제 성공 콜백 호출 (실제로는 결제 완료 후에 호출됨)
-      if (onSuccess) {
-        onSuccess({
-          orderId: response.orderId,
-          amount: krwAmount,
-          ethAmount: ethAmount
-        });
-      }
-      
-      // 모달 닫기
+      // 결제창이 열리기 전에 모달 닫기
+      setIsLoading(false);
       onClose();
+      
+      console.log('🔄 토스페이먼츠 결제창으로 이동합니다...');
       
     } catch (error) {
       console.error('❌ 결제 요청 실패:', error);

@@ -173,10 +173,25 @@ function NFTCard({ nft }) {
   };
 
   // 이미지 URL 처리 - Supabase Storage URL 또는 IPFS URL
-  const imageUrl = imageError ? '/placeholder-nft.png' : 
-    (nft.image ? 
-      (nft.image.startsWith('http') ? nft.image : ipfsToHttp(nft.image)) : 
-      '/placeholder-nft.png');
+  // Supabase Storage 이미지 변환 적용 (최적화된 크기로 로드)
+  const getOptimizedImageUrl = (url) => {
+    if (!url || imageError) return '/placeholder-nft.png';
+    
+    // Supabase Storage URL인 경우 변환 파라미터 추가
+    if (url.includes('supabase.co/storage')) {
+      // 카드 이미지: 400x400 크기로 최적화
+      return `${url}?width=400&height=400&quality=80&format=webp`;
+    }
+    
+    // IPFS URL인 경우 HTTP 변환
+    if (url.startsWith('ipfs://')) {
+      return ipfsToHttp(url);
+    }
+    
+    return url;
+  };
+
+  const imageUrl = nft.image ? getOptimizedImageUrl(nft.image) : '/placeholder-nft.png';
 
   return (
     <>

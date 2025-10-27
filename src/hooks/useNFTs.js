@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, isOnline, isJWTExpired, isNetworkError } from '../lib/supabase';
 
 /**
  * NFT 목록을 가져오는 커스텀 훅 (Supabase 연동)
@@ -96,10 +96,82 @@ export function useNFTs() {
       console.log('✅ Supabase NFT 목록 조회 성공:', transformedNFTs.length, '개');
       setNfts(transformedNFTs);
 
+      // 로컬 캐시에 저장 (오프라인 모드용) - 용량 최적화
+      try {
+        // 먼저 localStorage 정리 (저장 전에 공간 확보)
+        try {
+          console.log('🗑️ localStorage 정리 시작...');
+
+          // Supabase 인증 토큰을 제외한 모든 항목 삭제
+          const keysToKeep = ['sb-', 'supabase']; // Supabase 관련 키만 보존
+          const allKeys = Object.keys(localStorage);
+          let removedCount = 0;
+
+          allKeys.forEach(key => {
+            // Supabase 관련 키가 아니면 삭제
+            if (!keysToKeep.some(keepKey => key.includes(keepKey))) {
+              try {
+                localStorage.removeItem(key);
+                removedCount++;
+              } catch (e) {
+                // 개별 삭제 실패는 무시
+              }
+            }
+          });
+
+          console.log(`✅ localStorage 정리 완료: ${removedCount}개 항목 삭제`);
+        } catch (cleanError) {
+          console.warn('⚠️ localStorage 정리 중 오류:', cleanError);
+        }
+
+        // 이미지 데이터가 너무 크면 URL만 저장
+        const cacheData = transformedNFTs.map(nft => ({
+          id: nft.id,
+          name: nft.name,
+          description: nft.description?.substring(0, 100), // 설명 더 축약
+          image: nft.image, // URL만 (base64 제외)
+          price: nft.price,
+          creator: nft.creator
+        }));
+
+        // 최대 30개만 캐시 (용량 더 절약)
+        const limitedCache = cacheData.slice(0, 30);
+        const cacheString = JSON.stringify(limitedCache);
+
+        // 저장 시도
+        localStorage.setItem('cached_nfts', cacheString);
+        localStorage.setItem('cached_nfts_time', Date.now().toString());
+        console.log(`💾 NFT 캐시 저장 완료: ${limitedCache.length}개 (${(cacheString.length / 1024).toFixed(2)}KB)`);
+
+      } catch (cacheError) {
+        // 저장 실패 시 조용히 무시 (오프라인 모드가 작동하지 않을 뿐, 앱은 정상 작동)
+        console.log('ℹ️ 캐시 저장 생략 (localStorage 용량 부족)');
+      }
+
     } catch (error) {
       console.error('❌ NFT 목록 조회 실패:', error);
-      setError(error.message);
-      setNfts([]);
+
+      // JWT 만료 처리
+      if (isJWTExpired(error)) {
+        console.warn('⚠️ JWT 만료 - 로컬 캐시 사용');
+        setError('세션이 만료되었습니다. 새로고침 후 다시 로그인해주세요.');
+        // 로컬 캐시 사용
+        const localNFTs = JSON.parse(localStorage.getItem('cached_nfts') || '[]');
+        setNfts(localNFTs);
+      }
+      // 네트워크 오류 처리
+      else if (isNetworkError(error) || !isOnline()) {
+        console.warn('⚠️ 네트워크 오류 - 로컬 캐시 사용');
+        setError('인터넷 연결을 확인해주세요. 캐시된 데이터를 표시합니다.');
+        // 로컬 캐시 사용
+        const localNFTs = JSON.parse(localStorage.getItem('cached_nfts') || '[]');
+        setNfts(localNFTs);
+      }
+      // 기타 오류
+      else {
+        setError(error.message);
+        setNfts([]);
+      }
     } finally {
       setLoading(false);
     }

@@ -37,7 +37,26 @@ if (supabaseUrl && supabaseAnonKey) {
           }
           if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
             console.log('🔒 로그아웃됨');
+            // localStorage 클리어
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('supabase.auth.token');
+            }
           }
+          if (event === 'TOKEN_EXPIRED') {
+            console.warn('⚠️ 토큰 만료됨');
+            // 사용자에게 재로그인 유도
+            if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+              const shouldRelogin = confirm('세션이 만료되었습니다. 다시 로그인하시겠습니까?');
+              if (shouldRelogin) {
+                window.location.href = '/login';
+              }
+            }
+          }
+        },
+      },
+      global: {
+        headers: {
+          'x-client-info': 'key-mint-app',
         },
       },
     });
@@ -47,13 +66,142 @@ if (supabaseUrl && supabaseAnonKey) {
       window.supabase = supabase;
     }
 
-    console.log(' Supabase 클라이언트 초기화 성공');
+    console.log('✅ Supabase 클라이언트 초기화 성공');
   } catch (error) {
-    console.error(' Supabase 클라이언트 초기화 실패:', error);
+    console.error('❌ Supabase 클라이언트 초기화 실패:', error);
   }
 }
 
 export { supabase };
+
+// ===== 오류 처리 헬퍼 함수들 =====
+
+/**
+ * 인터넷 연결 상태 확인
+ */
+export function isOnline() {
+  if (typeof window === 'undefined') return true;
+  return navigator.onLine;
+}
+
+/**
+ * Supabase 오류 처리 및 재시도 로직
+ */
+export async function withRetry(fn, options = {}) {
+  const {
+    maxRetries = 3,
+    delay = 1000,
+    onRetry = null,
+    shouldRetry = (error) => {
+      // 네트워크 오류나 타임아웃은 재시도
+      return error.message?.includes('fetch') ||
+             error.message?.includes('network') ||
+             error.message?.includes('timeout');
+    }
+  } = options;
+
+  let lastError;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+
+      // 재시도 가능한 오류인지 확인
+      if (!shouldRetry(error) || attempt === maxRetries - 1) {
+        throw error;
+      }
+
+      // 재시도 전 대기
+      if (onRetry) {
+        onRetry(attempt + 1, maxRetries, error);
+      }
+
+      console.warn(`⚠️ 재시도 ${attempt + 1}/${maxRetries}:`, error.message);
+      await new Promise(resolve => setTimeout(resolve, delay * (attempt + 1)));
+    }
+  }
+
+  throw lastError;
+}
+
+/**
+ * JWT 만료 오류 확인
+ */
+export function isJWTExpired(error) {
+  return error?.message?.includes('JWT expired') ||
+         error?.message?.includes('token') ||
+         error?.status === 401;
+}
+
+/**
+ * 네트워크 오류 확인
+ */
+export function isNetworkError(error) {
+  return error?.message?.includes('fetch') ||
+         error?.message?.includes('network') ||
+         error?.message?.includes('ERR_INTERNET_DISCONNECTED') ||
+         error?.message?.includes('Failed to fetch') ||
+         !isOnline();
+}
+
+/**
+ * Supabase 쿼리 실행 with 오류 처리
+ */
+export async function executeSupabaseQuery(queryFn, options = {}) {
+  const { fallbackValue = null, showError = true } = options;
+
+  try {
+    // 인터넷 연결 확인
+    if (!isOnline()) {
+      console.warn('⚠️ 오프라인 상태: 로컬 데이터 사용');
+      return fallbackValue;
+    }
+
+    // Retry 로직과 함께 쿼리 실행
+    return await withRetry(queryFn, {
+      maxRetries: 2,
+      delay: 500,
+      onRetry: (attempt, max) => {
+        console.log(`🔄 재시도 중... (${attempt}/${max})`);
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Supabase 쿼리 실패:', error);
+
+    // JWT 만료
+    if (isJWTExpired(error)) {
+      console.warn('⚠️ JWT 만료 - 재로그인 필요');
+      if (showError && typeof window !== 'undefined') {
+        const shouldRelogin = confirm('세션이 만료되었습니다. 다시 로그인하시겠습니까?');
+        if (shouldRelogin) {
+          window.location.href = '/login';
+        }
+      }
+      return fallbackValue;
+    }
+
+    // 네트워크 오류
+    if (isNetworkError(error)) {
+      console.warn('⚠️ 네트워크 오류 - 인터넷 연결을 확인하세요');
+      if (showError && typeof window !== 'undefined') {
+        // 너무 많은 알림을 방지하기 위해 sessionStorage 사용
+        const lastNotification = sessionStorage.getItem('lastNetworkError');
+        const now = Date.now();
+        if (!lastNotification || now - parseInt(lastNotification) > 30000) {
+          alert('⚠️ 인터넷 연결을 확인해주세요.\n\n일부 기능이 제한될 수 있습니다.');
+          sessionStorage.setItem('lastNetworkError', now.toString());
+        }
+      }
+      return fallbackValue;
+    }
+
+    // 기타 오류
+    throw error;
+  }
+}
 
 // ===== AUTHENTICATION 함수들 =====
 

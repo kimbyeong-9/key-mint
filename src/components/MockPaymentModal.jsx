@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import { supabase } from '../lib/supabase';
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -111,7 +112,12 @@ const Input = styled.input`
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 14px;
+  color: #000000;
   transition: border-color 0.2s;
+  
+  &::placeholder {
+    color: #9ca3af;
+  }
   
   &:focus {
     outline: none;
@@ -216,10 +222,10 @@ const MockNoticeText = styled.div`
 `;
 
 const MockPaymentModal = ({ isOpen, onClose, nft, userId, onPaymentSuccess }) => {
-  const [cardNumber, setCardNumber] = useState('1234-5678-9012-3456');
-  const [expiryDate, setExpiryDate] = useState('12/25');
-  const [cvv, setCvv] = useState('123');
-  const [cardHolder, setCardHolder] = useState('홍길동');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [cvv, setCvv] = useState('');
+  const [cardHolder, setCardHolder] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
   if (!isOpen) return null;
@@ -228,42 +234,96 @@ const MockPaymentModal = ({ isOpen, onClose, nft, userId, onPaymentSuccess }) =>
     setIsProcessing(true);
     
     try {
+      // 결제 검증
+      if (!cardNumber.trim()) {
+        alert('카드 번호를 입력해주세요.');
+        setIsProcessing(false);
+        return;
+      }
+      
+      if (!expiryDate.trim()) {
+        alert('만료일을 입력해주세요.');
+        setIsProcessing(false);
+        return;
+      }
+      
+      if (!cvv.trim()) {
+        alert('CVV를 입력해주세요.');
+        setIsProcessing(false);
+        return;
+      }
+      
+      if (!cardHolder.trim()) {
+        alert('카드 소유자명을 입력해주세요.');
+        setIsProcessing(false);
+        return;
+      }
+      
       // 모의 결제 처리
       const orderId = `NFT_${Date.now()}_${userId}`;
       const amountKrw = Math.round(parseFloat(nft.price) * 3000000); // ETH to KRW
       const amountEth = parseFloat(nft.price);
       
-      const response = await fetch('/api/mock-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          orderId,
-          amountKrw,
-          amountEth,
-          nftId: nft.id,
-          nftName: nft.name
-        })
-      });
-
-      const result = await response.json();
+      console.log('💳 모의 결제 시작:', { orderId, amountKrw, amountEth });
       
-      if (result.success) {
-        // 3초 후 결제 완료 처리
-        setTimeout(() => {
-          setIsProcessing(false);
-          onPaymentSuccess(result.data);
-          onClose();
-        }, 3000);
-      } else {
-        throw new Error(result.error);
+      // Supabase에 결제 요청 생성
+      const { data: paymentResult, error: paymentError } = await supabase.rpc('create_payment_request', {
+        user_uuid: userId,
+        order_id_param: orderId,
+        amount_krw_param: amountKrw,
+        amount_eth_param: amountEth,
+        nft_id_param: nft.id,
+        nft_name_param: nft.name || 'NFT 구매'
+      });
+      
+      if (paymentError) {
+        console.error('❌ 결제 요청 생성 실패:', paymentError);
+        throw new Error(`결제 요청 생성 실패: ${paymentError.message}`);
       }
+      
+      console.log('✅ 결제 요청 생성 성공:', paymentResult);
+      
+      // 3초 후 결제 완료 처리 (모의 결제 시뮬레이션)
+      setTimeout(async () => {
+        try {
+          const mockPaymentKey = `mock_pk_${Date.now()}`;
+          
+          // 결제 완료 처리
+          const { data: successResult, error: successError } = await supabase.rpc('process_payment_success', {
+            order_id_param: orderId,
+            payment_key_param: mockPaymentKey
+          });
+          
+          if (successError) {
+            console.error('❌ 결제 완료 처리 실패:', successError);
+          } else {
+            console.log('✅ 결제 완료 처리 성공:', successResult);
+          }
+          
+          setIsProcessing(false);
+          
+          onPaymentSuccess({
+            orderId,
+            paymentKey: mockPaymentKey,
+            amount: amountKrw,
+            status: 'completed',
+            completedAt: new Date().toISOString(),
+            cardNumber: cardNumber,
+            cardHolder: cardHolder
+          });
+          
+          onClose();
+        } catch (error) {
+          console.error('❌ 결제 완료 처리 중 오류:', error);
+          setIsProcessing(false);
+          alert('결제 처리 중 오류가 발생했습니다.');
+        }
+      }, 3000);
+      
     } catch (error) {
       console.error('❌ 모의 결제 실패:', error);
       setIsProcessing(false);
-      alert('결제 처리 중 오류가 발생했습니다.');
+      alert(`결제 처리 중 오류가 발생했습니다: ${error.message}`);
     }
   };
 

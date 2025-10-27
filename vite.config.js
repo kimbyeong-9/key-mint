@@ -6,9 +6,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    open: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    open: true, // 시스템 기본 브라우저로 자동 실행
     host: '0.0.0.0', // 모든 네트워크 인터페이스에서 접근 가능
-    strictPort: true, // 포트가 사용 중이면 오류 발생
+    strictPort: false, // 포트가 사용 중이면 다른 포트 사용
     hmr: false, // HMR 완전 비활성화 (WebSocket 오류 근본 해결)
     watch: {
       usePolling: true, // 파일 시스템 폴링 사용
