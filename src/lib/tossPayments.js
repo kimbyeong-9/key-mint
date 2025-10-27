@@ -149,7 +149,7 @@ export const requestPayment = async (nft, userId) => {
       orderName: nftName
     });
     
-    const response = await tossPayments.requestPayment('카드', {
+    const response = await tossPayments.requestPayment('휴대폰', {
       amount: Math.max(amountKrw, 100),
       orderId: orderId,
       orderName: nftName,
