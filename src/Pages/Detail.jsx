@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAccount, useChainId } from 'wagmi';
 import BadgeNFT from '../components/BadgeNFT';
-import MockPaymentModal from '../components/MockPaymentModal';
+import PaymentModal from '../components/PaymentModal';
 import { useNFTDetail } from '../hooks/useNFTDetail';
 import { useNFTListing } from '../hooks/useNFTListing';
 import { useUser } from '../contexts/UserContext';
@@ -607,16 +607,13 @@ function Detail() {
         </ImageModal>
       )}
 
-      {/* 카드 정보 직접 입력 결제 모달 */}
-      {user && (
-        <MockPaymentModal
-          isOpen={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          nft={nft}
-          userId={user.id}
-          onPaymentSuccess={handlePaymentSuccess}
-        />
-      )}
+      {/* 실제 토스페이먼츠 결제 모달 */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        nft={nft}
+        onSuccess={handlePaymentSuccess}
+      />
     </Container>
   );
 }

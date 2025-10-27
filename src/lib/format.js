@@ -2,12 +2,25 @@ import { formatUnits, parseUnits } from 'viem';
 
 /**
  * Wei를 ETH로 변환
- * @param {bigint|string} wei - Wei 값
+ * @param {bigint|string|number} wei - Wei 값 (또는 이미 ETH 단위인 숫자)
  * @returns {string} - ETH 값
  */
 export function formatEther(wei) {
   if (!wei) return '0';
-  return formatUnits(BigInt(wei), 18);
+  
+  // 이미 숫자이고 1보다 작으면 ETH 단위로 간주
+  if (typeof wei === 'number' && wei < 1) {
+    return wei.toFixed(6);
+  }
+  
+  try {
+    // BigInt로 변환 후 formatUnits 사용
+    return formatUnits(BigInt(wei), 18);
+  } catch (error) {
+    // BigInt 변환 실패 시 문자열로 처리
+    console.warn('formatEther 변환 경고:', error);
+    return String(wei);
+  }
 }
 
 /**

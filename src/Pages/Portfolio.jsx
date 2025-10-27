@@ -4,12 +4,15 @@ import styled from 'styled-components';
 import { usePortfolio } from '../hooks/usePortfolio';
 import { useETHBalance } from '../hooks/useETHBalance';
 import { formatEther, formatDate } from '../lib/format';
+import { ipfsToHttp } from '../lib/ipfs';
 
 const Container = styled.div`
   min-height: 100vh;
   background: ${({ theme }) => theme.colors.bg};
   color: ${({ theme }) => theme.colors.text};
   padding: ${({ theme }) => theme.spacing(4)};
+  max-width: 1400px;
+  margin: 0 auto;
 `;
 
 const Header = styled.div`
@@ -58,7 +61,7 @@ const ActionButtons = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing(3)};
   margin-bottom: ${({ theme }) => theme.spacing(6)};
-  justify-content: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
 `;
 
@@ -86,6 +89,12 @@ const ActionButton = styled.button`
 
 const Section = styled.div`
   margin-bottom: ${({ theme }) => theme.spacing(6)};
+  
+  /* NFT가 적을 때 중앙 정렬 */
+  &:first-of-type {
+    display: flex;
+    flex-direction: column;
+  }
 `;
 
 const SectionTitle = styled.h2`
@@ -96,8 +105,13 @@ const SectionTitle = styled.h2`
 
 const NFTGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: ${({ theme }) => theme.spacing(3)};
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: ${({ theme }) => theme.spacing(4)};
+  max-width: 1200px;
+  
+  @media (min-width: 768px) {
+    justify-items: start;
+  }
 `;
 
 const NFTCard = styled.div`
@@ -107,16 +121,19 @@ const NFTCard = styled.div`
   padding: ${({ theme }) => theme.spacing(3)};
   cursor: pointer;
   transition: ${({ theme }) => theme.transition.fast};
+  width: 100%;
+  max-width: 300px;
 
   &:hover {
     border-color: ${({ theme }) => theme.colors.primary};
     transform: translateY(-2px);
+    box-shadow: ${({ theme }) => theme.shadow.md};
   }
 `;
 
 const NFTImage = styled.div`
   width: 100%;
-  height: 150px;
+  height: 200px;
   background: ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.radius.sm};
   margin-bottom: ${({ theme }) => theme.spacing(2)};
@@ -125,6 +142,14 @@ const NFTImage = styled.div`
   justify-content: center;
   font-size: ${({ theme }) => theme.font.size.sm};
   color: ${({ theme }) => theme.colors.textSub};
+  overflow: hidden;
+  position: relative;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 `;
 
 const NFTTitle = styled.h3`
@@ -289,13 +314,32 @@ function Portfolio() {
         <SectionTitle>보유 NFT ({nftOwnership.length}개)</SectionTitle>
         {nftOwnership.length > 0 ? (
           <NFTGrid>
-            {nftOwnership.map((nft) => (
-              <NFTCard key={nft.id} onClick={() => handleNFTClick(nft.nft_id)}>
-                <NFTImage>NFT 이미지</NFTImage>
-                <NFTTitle>NFT #{nft.nft_id}</NFTTitle>
-                <NFTPrice>{formatEther(nft.purchase_price_eth)} ETH</NFTPrice>
-              </NFTCard>
-            ))}
+            {nftOwnership.map((nft) => {
+              // 이미지 URL 처리
+              const getImageUrl = (imageUrl) => {
+                if (!imageUrl) return '/placeholder-nft.png';
+                if (imageUrl.startsWith('ipfs://')) {
+                  return ipfsToHttp(imageUrl);
+                }
+                return imageUrl;
+              };
+
+              return (
+                <NFTCard key={nft.id} onClick={() => handleNFTClick(nft.nft_id)}>
+                  <NFTImage>
+                    <img 
+                      src={getImageUrl(nft.image_url)} 
+                      alt={nft.nft_name || `NFT ${nft.nft_id}`}
+                      onError={(e) => {
+                        e.target.src = '/placeholder-nft.png';
+                      }}
+                    />
+                  </NFTImage>
+                  <NFTTitle>{nft.nft_name || `NFT ${nft.nft_id}`}</NFTTitle>
+                  <NFTPrice>{formatEther(nft.purchase_price_eth || 0)} ETH</NFTPrice>
+                </NFTCard>
+              );
+            })}
           </NFTGrid>
         ) : (
           <EmptyState>

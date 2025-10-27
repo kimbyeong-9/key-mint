@@ -328,10 +328,8 @@ function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
       
       console.log('✅ 토스페이먼츠 결제 요청 성공:', response);
       
-      // 결제창이 열리기 전에 모달 닫기
-      setIsLoading(false);
-      onClose();
-      
+      // 토스페이먼츠 SDK가 자동으로 결제창으로 리다이렉트
+      // 모달은 유지 (결제 완료 후 자동으로 닫힘)
       console.log('🔄 토스페이먼츠 결제창으로 이동합니다...');
       
     } catch (error) {
