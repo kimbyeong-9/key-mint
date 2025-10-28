@@ -43,9 +43,14 @@ const Description = styled.p`
 
 const ButtonGroup = styled.div`
   display: flex;
-  gap: ${({ theme }) => theme.spacing(3)};
+  gap: ${({ theme }) => theme.spacing(2)};
   justify-content: center;
   flex-wrap: wrap;
+
+  & > * {
+    flex: 1;
+    min-width: 140px;
+  }
 `;
 
 const CloseButton = styled.button`
