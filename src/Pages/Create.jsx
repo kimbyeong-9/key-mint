@@ -4,49 +4,11 @@ import styled from 'styled-components';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Modal from '../components/Modal';
+import StatusMessage from '../components/StatusMessage';
 import { useUser } from '../contexts/UserContext';
 import { uploadOptimizedNFTImage, supabase } from '../lib/supabase';
 import { useBlockchainMint } from '../hooks/useBlockchain';
-import { convertKRWToETH, convertETHToKRW } from '../lib/tossPayments';
-
-// 네트워크 강제 전환 함수
-const switchToLocalhost = async () => {
-  if (typeof window.ethereum !== 'undefined') {
-    try {
-      // Localhost 8545 네트워크로 전환 시도
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0x7A69' }], // 31337 in hex
-      });
-      console.log('✅ 네트워크가 Localhost 8545로 전환되었습니다.');
-    } catch (switchError) {
-      // 네트워크가 없으면 추가
-      if (switchError.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: '0x7A69',
-              chainName: 'Localhost 8545',
-              rpcUrls: ['http://127.0.0.1:8545'],
-              nativeCurrency: {
-                name: 'Ethereum',
-                symbol: 'ETH',
-                decimals: 18
-              },
-              blockExplorerUrls: ['http://localhost:8545']
-            }]
-          });
-          console.log('✅ Localhost 8545 네트워크가 추가되고 전환되었습니다.');
-        } catch (addError) {
-          console.error('❌ 네트워크 추가 실패:', addError);
-        }
-      } else {
-        console.error('❌ 네트워크 전환 실패:', switchError);
-      }
-    }
-  }
-};
+import { removeCommas, addCommas, convertKRWtoETH } from '../lib/priceUtils';
 
 const Container = styled.div`
   max-width: 800px;
@@ -372,29 +334,11 @@ const PriceInfo = styled.div`
   margin-top: ${({ theme }) => theme.spacing(0.5)};
 `;
 
-const SuccessMessage = styled.div`
-  color: ${({ theme }) => theme.colors.success};
-  font-size: ${({ theme }) => theme.font.size.sm};
-  margin-top: ${({ theme }) => theme.spacing(0.5)};
-  padding: ${({ theme }) => theme.spacing(1)};
-  background: ${({ theme }) => `${theme.colors.success}15`};
-  border: 1px solid ${({ theme }) => theme.colors.success};
-  border-radius: ${({ theme }) => theme.radius.sm};
-`;
-
 function Create() {
   const navigate = useNavigate();
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
   const { user } = useUser();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // 네트워크 전환 효과
-  useEffect(() => {
-    if (isConnected) {
-      // 지갑이 연결되면 자동으로 Localhost 네트워크로 전환 시도
-      switchToLocalhost();
-    }
-  }, [isConnected]);
   
   // 블록체인 민팅 훅
   const { 
@@ -438,34 +382,24 @@ function Create() {
     setUploadProgress(0);
   };
 
-  // 숫자에 천 단위 구분자 추가하는 함수
-  const addCommas = (num) => {
-    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  };
-
-  // 콤마가 포함된 문자열에서 숫자만 추출하는 함수
-  const removeCommas = (str) => {
-    return str.replace(/,/g, '');
-  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     if (name === 'krwPrice') {
       // 콤마 제거 후 숫자만 추출
       const numericValue = removeCommas(value);
-      
+
       // 숫자가 아닌 경우 빈 문자열로 처리
       if (numericValue === '' || /^\d+$/.test(numericValue)) {
         const krwAmount = parseInt(numericValue) || 0;
-        const ETH_TO_KRW_RATE = 3000000;
-        const ethAmount = parseFloat((krwAmount / ETH_TO_KRW_RATE).toFixed(6));
-        
+        const ethAmount = convertKRWtoETH(krwAmount);
+
         // 콤마가 포함된 값으로 표시
         const formattedValue = numericValue === '' ? '' : addCommas(numericValue);
-        
-        setFormData((prev) => ({ 
-          ...prev, 
+
+        setFormData((prev) => ({
+          ...prev,
           krwPrice: formattedValue,
           price: ethAmount.toString()
         }));
@@ -473,7 +407,7 @@ function Create() {
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
-    
+
     // 에러 초기화
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -504,7 +438,6 @@ function Create() {
       reader.readAsDataURL(file);
 
     } catch (error) {
-      console.error('파일 처리 실패:', error);
       setErrors(prev => ({ ...prev, file: '파일 처리 중 오류가 발생했습니다.' }));
     }
   };
@@ -543,18 +476,6 @@ function Create() {
     // 첫 번째 파일만 처리 (나중에 다중 파일 지원 추가)
     const file = files[0];
     await processFile(file);
-  };
-
-  // 다중 파일 처리 (향후 확장용)
-  const handleMultipleFiles = async (files) => {
-    if (files.length === 0) return;
-    
-    // 현재는 첫 번째 파일만 처리
-    const file = files[0];
-    await processFile(file);
-    
-    // 향후 다중 파일 지원 시 여기에 로직 추가
-    console.log('다중 파일 업로드 준비 중...', files.length, '개 파일');
   };
 
   // 클릭 이벤트 핸들러 (모바일/데스크톱 공통)
@@ -623,17 +544,11 @@ function Create() {
       return;
     }
 
-    // 네트워크 전환 시도
-    await switchToLocalhost();
-    
-    // 잠시 대기 (네트워크 전환 시간)
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
     setIsSubmitting(true);
     setUploadProgress(0);
 
     try {
-      console.log('🚀 NFT 등록 시작:', formData);
+      // NFT 등록 시작
 
       // 진행률 시뮬레이션
       const progressInterval = setInterval(() => {
@@ -659,8 +574,6 @@ function Create() {
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      console.log('✅ 최적화된 이미지 업로드 완료:', imageResult);
-
       // 2. NFT 데이터를 로컬 스토리지에 저장 (임시)
       const nftData = {
         id: imageResult.id,
@@ -685,7 +598,6 @@ function Create() {
       
       if (isConnected && enableBlockchain) {
         try {
-          console.log('⛓️ 블록체인 민팅 시작...');
           blockchainResult = await mintNFT({
             ...nftData,
             imageMetadata: {
@@ -700,22 +612,12 @@ function Create() {
               compressionRatio: imageResult.optimization?.compressionRatio
             }
           });
-
-          console.log('✅ 블록체인 민팅 완료:', blockchainResult);
         } catch (blockchainError) {
-          console.warn('⚠️ 블록체인 민팅 실패 (로컬 저장은 계속 진행):', blockchainError);
-          
           // 사용자가 트랜잭션을 거부한 경우 특별 처리
           if (blockchainError.code === 4001 || blockchainError.message?.includes('User denied')) {
-            console.log('ℹ️ 사용자가 트랜잭션을 거부했습니다. 로컬 저장만 진행합니다.');
-            // 사용자에게 알림 표시
             alert('⚠️ MetaMask에서 트랜잭션을 거부하셨습니다.\n\nNFT는 로컬에 저장되지만 블록체인에 민팅되지 않았습니다.\n\n다시 시도하려면 "등록" 버튼을 클릭하고 MetaMask에서 "승인"을 선택해주세요.');
           }
         }
-      } else if (isConnected && !enableBlockchain) {
-        console.log('📝 블록체인 민팅 비활성화 (Web3.Storage 유지보수 중)');
-      } else if (isConnected && enableBlockchain) {
-        console.log('📝 블록체인 민팅 활성화 - 로컬 메타데이터 사용');
       }
 
       // 4. Supabase에 NFT 메타데이터 저장
@@ -736,14 +638,7 @@ function Create() {
         // 데이터베이스에서 정수 타입을 기대하므로 숫자로 변환
         const uniqueTokenId = blockchainResult?.tokenId ? 
           parseInt(blockchainResult.tokenId.toString()) : 
-          Math.floor(Date.now() / 1000); // 현재 시간을 초 단위로 변환하여 고유한 정수 생성
-        
-        console.log('💾 Supabase에 NFT 데이터 저장 시작...', { 
-          nftId, 
-          name: formData.name, 
-          userId: currentUser.id,
-          walletAddress: address 
-        });
+          Math.floor(Date.now() / 1000);
         
         // 1. nft_metadata 테이블에 메타데이터 저장
         const { data: metadataData, error: metadataError } = await supabase
@@ -763,13 +658,10 @@ function Create() {
           .select();
 
         if (metadataError) {
-          console.error('❌ NFT 메타데이터 저장 실패:', metadataError);
           throw new Error(`메타데이터 저장 실패: ${metadataError.message}`);
-        } else {
-          console.log('✅ NFT 메타데이터 저장 완료:', metadataData);
         }
 
-               // 2. nft_listings 테이블에 리스팅 정보 저장
+        // 2. nft_listings 테이블에 리스팅 정보 저장
                const { data: listingData, error: listingError } = await supabase
                  .from('nft_listings')
                  .insert({
@@ -784,18 +676,10 @@ function Create() {
                  .select();
 
         if (listingError) {
-          console.error('❌ NFT 리스팅 저장 실패:', listingError);
           throw new Error(`리스팅 저장 실패: ${listingError.message}`);
-        } else {
-          console.log('✅ NFT 리스팅 저장 완료:', listingData);
         }
-
-        console.log('🎉 Supabase 저장 완료! NFT ID:', nftId);
-
       } catch (dbError) {
-        console.error('❌ 데이터베이스 저장 중 오류:', dbError);
         // 데이터베이스 저장 실패해도 로컬 저장은 계속 진행
-        console.warn('⚠️ 데이터베이스 저장 실패했지만 로컬 저장은 계속 진행합니다.');
       }
 
       // 5. 로컬 스토리지에도 백업 저장
@@ -812,8 +696,6 @@ function Create() {
       const existingNFTs = JSON.parse(localStorage.getItem('draftNFTs') || '[]');
       existingNFTs.push(finalNFTData);
       localStorage.setItem('draftNFTs', JSON.stringify(existingNFTs));
-
-      console.log('✅ NFT 데이터 저장 완료');
 
       // 성공 메시지
       const compressionInfo = imageResult.optimization
@@ -854,7 +736,6 @@ function Create() {
       window.dispatchEvent(new Event('storage'));
 
     } catch (error) {
-      console.error('❌ NFT 등록 실패:', error);
       alert('NFT 등록에 실패했습니다: ' + error.message);
     } finally {
       setIsSubmitting(false);

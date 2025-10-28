@@ -4,8 +4,8 @@ import { useAccount } from 'wagmi';
 import styled, { keyframes } from 'styled-components';
 import BadgeNFT from './BadgeNFT';
 import WalletConnectModal from './WalletConnectModal';
-import { formatEther, shortenAddress } from '../lib/format';
-import { ipfsToHttp } from '../lib/ipfs';
+import { formatEther } from '../lib/format';
+import { getOptimizedImageUrl } from '../lib/imageUtils';
 
 const Card = styled.div`
   background: ${({ theme }) => theme.colors.card};
@@ -121,7 +121,7 @@ const Content = styled.div`
   /* 모바일 최적화 */
   @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
     padding: ${({ theme }) => theme.spacing(1.5)};
-    min-height: 120px; /* 모바일에서 최소 높이 보장 */
+    min-height: 140px; /* 모바일에서 최소 높이 증가 */
   }
 `;
 
@@ -130,20 +130,37 @@ const Title = styled.h3`
   font-weight: ${({ theme }) => theme.font.weight.bold};
   color: ${({ theme }) => theme.colors.text};
   margin-bottom: ${({ theme }) => theme.spacing(1)};
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.4;
+  max-height: 3.2em; /* 최대 2줄 높이 */
+  
+  /* 모바일에서 제목 크기 조정 */
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    font-size: ${({ theme }) => theme.font.size.md};
+    line-height: 1.5;
+    max-height: 3em;
+  }
 `;
 
 const Description = styled.p`
   font-size: ${({ theme }) => theme.font.size.sm};
   color: ${({ theme }) => theme.colors.textSub};
-  margin-bottom: ${({ theme }) => theme.spacing(2)};
+  margin-bottom: ${({ theme }) => theme.spacing(1)};
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 40px;
+  line-height: 1.4;
+  
+  /* 모바일에서 설명 표시 줄임 */
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    -webkit-line-clamp: 1;
+    min-height: 0;
+  }
 `;
 
 const Footer = styled.div`
@@ -242,26 +259,8 @@ function NFTCard({ nft }) {
     setIsImageLoaded(true); // 에러 시에도 스켈레톤 제거
   };
 
-  // 이미지 URL 처리 - Supabase Storage URL 또는 IPFS URL
-  // Supabase Storage 이미지 변환 적용 (최적화된 크기로 로드)
-  const getOptimizedImageUrl = (url) => {
-    if (!url || imageError) return '/placeholder-nft.png';
-
-    // Supabase Storage URL인 경우 변환 파라미터 추가
-    if (url.includes('supabase.co/storage')) {
-      // 카드 이미지: 400x400 크기로 최적화
-      return `${url}?width=400&height=400&quality=80&format=webp`;
-    }
-
-    // IPFS URL인 경우 HTTP 변환
-    if (url.startsWith('ipfs://')) {
-      return ipfsToHttp(url);
-    }
-
-    return url;
-  };
-
-  const imageUrl = nft.image ? getOptimizedImageUrl(nft.image) : '/placeholder-nft.png';
+  // imageUtils의 getOptimizedImageUrl 사용 (card 크기: 400x400)
+  const imageUrl = imageError ? '/placeholder-nft.png' : getOptimizedImageUrl(nft.image, 'card');
 
   return (
     <>

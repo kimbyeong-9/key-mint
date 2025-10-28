@@ -326,7 +326,7 @@ export function generateUniqueFilename(originalFilename) {
  */
 export function validateImageFile(file) {
   const errors = [];
-  
+
   // 파일 존재 확인
   if (!file) {
     errors.push('파일이 선택되지 않았습니다.');
@@ -354,4 +354,39 @@ export function validateImageFile(file) {
     isValid: errors.length === 0,
     errors
   };
+}
+
+/**
+ * Supabase Storage 이미지 URL 최적화
+ * @param {string} url - 원본 이미지 URL
+ * @param {string} size - 이미지 크기 타입 ('card', 'detail', 'large')
+ * @returns {string} - 최적화된 이미지 URL
+ */
+export function getOptimizedImageUrl(url, size = 'card') {
+  if (!url) return '/placeholder-nft.png';
+
+  // Supabase Storage URL인 경우 변환 파라미터 추가
+  if (url.includes('supabase.co/storage')) {
+    const sizeConfig = {
+      card: { width: 400, height: 400, quality: 80 },
+      detail: { width: 800, height: 800, quality: 85 },
+      large: { width: 1200, height: 1200, quality: 90 }
+    };
+
+    const { width, height, quality } = sizeConfig[size] || sizeConfig.card;
+    return `${url}?width=${width}&height=${height}&quality=${quality}&format=webp`;
+  }
+
+  // IPFS URL 처리
+  if (url.startsWith('ipfs://')) {
+    return url.replace('ipfs://', 'https://ipfs.io/ipfs/');
+  }
+
+  // HTTP/HTTPS URL은 그대로 반환
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+
+  // 기타 경우 placeholder 반환
+  return '/placeholder-nft.png';
 }

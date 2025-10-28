@@ -6,6 +6,7 @@ import { useUser } from '../contexts/UserContext';
 import { useListingCounter } from '../hooks/useMarket';
 import { useNFTs } from '../hooks/useNFTs';
 import { useNFTCount } from '../hooks/useNFTCount';
+import { useAccount } from 'wagmi';
 
 const Container = styled.div`
   max-width: 1280px;
@@ -230,7 +231,6 @@ const SearchSection = styled.div`
   align-items: center;
   gap: ${({ theme }) => theme.spacing(3)};
   margin: ${({ theme }) => theme.spacing(2)} 0 ${({ theme }) => theme.spacing(3)} 0;
-  flex-wrap: wrap;
 
   @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
     flex-direction: column;
@@ -266,11 +266,47 @@ const SearchInput = styled.input`
   }
 `;
 
+const SearchWrapper = styled.div`
+  position: relative;
+  flex: 1;
+  max-width: 500px;
+`;
+
 const ResultsText = styled.div`
   font-size: ${({ theme }) => theme.font.size.sm};
   color: ${({ theme }) => theme.colors.textSub};
   white-space: nowrap;
   flex-shrink: 0;
+  position: absolute;
+  bottom: -22px;
+  left: 0;
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.mobile}) {
+    position: static;
+  }
+`;
+
+const CreateNFTButton = styled.button`
+  padding: ${({ theme }) => theme.spacing(1.5)} ${({ theme }) => theme.spacing(2.5)};
+  background: ${({ theme }) => theme.colors.primary};
+  color: white;
+  border: none;
+  border-radius: ${({ theme }) => theme.radius.md};
+  font-weight: ${({ theme }) => theme.font.weight.semibold};
+  font-size: ${({ theme }) => theme.font.size.sm};
+  cursor: pointer;
+  transition: ${({ theme }) => theme.transition.fast};
+  white-space: nowrap;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.primaryHover};
+    transform: translateY(-2px);
+    box-shadow: ${({ theme }) => theme.shadow.md};
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 `;
 
 const SectionTitle = styled.h2`
@@ -432,6 +468,7 @@ const LoadingSpinner = styled.div`
 function Home() {
   const navigate = useNavigate();
   const { user } = useUser();
+  const { isConnected } = useAccount();
   const [filter, setFilter] = useState('all'); // all, recent, popular
   const [searchTerm, setSearchTerm] = useState('');
   const [priceFilter, setPriceFilter] = useState('all');
@@ -569,6 +606,11 @@ function Home() {
       <Section>
         <SectionHeader>
           <SectionTitle>NFT 컬렉션</SectionTitle>
+          {user && isConnected && (
+            <CreateNFTButton onClick={handleCreateClick}>
+              NFT 등록
+            </CreateNFTButton>
+          )}
         </SectionHeader>
 
         {/* 정렬 방식 선택 섹션을 검색창 위로 이동 */}
@@ -601,30 +643,25 @@ function Home() {
               인기순
             </SortButton>
           </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            {user && (
-              <MobileCreateButton onClick={handleCreateClick}>
-                NFT 등록
-              </MobileCreateButton>
-            )}
-          </div>
         </SortSection>
 
-        {/* 검색창과 결과 텍스트를 나란히 배치 */}
+        {/* 검색창과 결과 텍스트 */}
         <SearchSection>
-          <SearchContainer>
-            <SearchInput
-              type="text"
-              placeholder="NFT 이름, 설명, 또는 ID로 검색..."
-              value={searchTerm}
-              onChange={(e) => handleSearch(e.target.value)}
-            />
-          </SearchContainer>
-          {filteredAndSortedNFTs.length > 0 && (
-            <ResultsText>
-              {filteredAndSortedNFTs.length}개의 결과를 찾았습니다
-            </ResultsText>
-          )}
+          <SearchWrapper>
+            <SearchContainer>
+              <SearchInput
+                type="text"
+                placeholder="NFT 이름, 설명, 또는 ID로 검색..."
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+            </SearchContainer>
+            {filteredAndSortedNFTs.length > 0 && (
+              <ResultsText>
+                {filteredAndSortedNFTs.length}개의 결과를 찾았습니다
+              </ResultsText>
+            )}
+          </SearchWrapper>
         </SearchSection>
 
         {loading ? (

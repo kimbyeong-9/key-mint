@@ -755,10 +755,15 @@ function Header() {
                   <UserGreeting onClick={toggleUserInfoModal} data-user-greeting>
                     <GreetingText>안녕하세요,</GreetingText>
                     <Nickname>{user.username}</Nickname>
+                    <GreetingText>님</GreetingText>
                   </UserGreeting>
-                  <DesktopCreateButton onClick={handleCreateClick}>
-                    NFT 등록
-                  </DesktopCreateButton>
+                  <WalletButton
+                    onClick={toggleWalletModal}
+                    aria-label="지갑 연결"
+                    title="지갑 연결"
+                  >
+                    👛
+                  </WalletButton>
                   <DesktopLogoutButton onClick={logout}>
                     로그아웃
                   </DesktopLogoutButton>
@@ -771,17 +776,6 @@ function Header() {
                 </>
               )}
             </DesktopNav>
-
-            {/* 지갑 버튼 - 로그인된 사용자만 표시 */}
-            {isLoggedIn && (
-              <WalletButton
-                onClick={toggleWalletModal}
-                aria-label="지갑 연결"
-                title="지갑 연결"
-              >
-                👛
-              </WalletButton>
-            )}
 
             {/* 햄버거 버튼 - 로그인된 사용자만 표시 */}
             {isLoggedIn && (
@@ -800,14 +794,12 @@ function Header() {
                      <UserGreeting onClick={toggleUserInfoModal} data-user-greeting>
                        <GreetingText>안녕하세요,</GreetingText>
                        <Nickname>{user.username}</Nickname>
+                       <GreetingText>님</GreetingText>
                      </UserGreeting>
                      
               <NavLink to="/portfolio" onClick={closeMobileMenu}>
                 포트폴리오
               </NavLink>
-              <CreateButton onClick={() => { handleCreateClick(); closeMobileMenu(); }}>
-                NFT 등록
-              </CreateButton>
               <LogoutButton onClick={() => { logout(); closeMobileMenu(); }}>
                 로그아웃
               </LogoutButton>

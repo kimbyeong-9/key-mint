@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import styled from 'styled-components';
 import { signUpWithEmail, checkUsernameAvailable, checkEmailAvailable } from '../lib/supabase';
+import { validateField, validateSignupForm } from '../lib/formValidation';
 import PasswordInput from '../components/PasswordInput';
 import InputWithButton from '../components/InputWithButton';
 import InputGroup from '../components/InputGroup';
+import StatusMessage from '../components/StatusMessage';
 
 const Container = styled.div`
   min-height: calc(100vh - 200px);
@@ -90,30 +92,6 @@ const Button = styled.button`
   }
 `;
 
-const StatusMessage = styled.div`
-  padding: ${({ theme }) => theme.spacing(2)};
-  border-radius: ${({ theme }) => theme.radius.md};
-  font-size: ${({ theme }) => theme.font.size.sm};
-  font-weight: ${({ theme }) => theme.font.weight.medium};
-  text-align: center;
-
-  ${({ $type, theme }) => {
-    if ($type === 'error') {
-      return `
-        background: ${theme.colors.danger}15;
-        color: ${theme.colors.danger};
-        border: 1px solid ${theme.colors.danger}40;
-      `;
-    } else if ($type === 'success') {
-      return `
-        background: ${theme.colors.success}15;
-        color: ${theme.colors.success};
-        border: 1px solid ${theme.colors.success}40;
-      `;
-    }
-  }}
-`;
-
 const LoginLink = styled.div`
   text-align: center;
   margin-top: ${({ theme }) => theme.spacing(3)};
@@ -174,12 +152,26 @@ function Signup() {
 
     // 실시간 유효성 검사
     if (errors[name]) {
-      validateField(name, value);
+      const errorMessage = validateField(name, value, { password: name === 'password' ? value : formData.password });
+      if (errorMessage) {
+        setErrors({ ...errors, [name]: errorMessage });
+      } else {
+        const newErrors = { ...errors };
+        delete newErrors[name];
+        setErrors(newErrors);
+      }
     }
 
     // 비밀번호가 변경되면 비밀번호 확인도 재검증
     if (name === 'password' && formData.confirmPassword) {
-      validateField('confirmPassword', formData.confirmPassword);
+      const confirmError = validateField('confirmPassword', formData.confirmPassword, { password: value });
+      if (confirmError) {
+        setErrors({ ...errors, confirmPassword: confirmError });
+      } else {
+        const newErrors = { ...errors };
+        delete newErrors.confirmPassword;
+        setErrors(newErrors);
+      }
     }
   };
 
@@ -239,100 +231,11 @@ function Signup() {
     }
   };
 
-  // 필드별 유효성 검사
-  const validateField = (fieldName, value) => {
-    const newErrors = { ...errors };
-
-    switch (fieldName) {
-      case 'username':
-        if (!value) {
-          newErrors.username = '사용자명을 입력해주세요.';
-        } else if (value.length < 2) {
-          newErrors.username = '사용자명은 2자 이상이어야 합니다.';
-        } else if (value.length > 20) {
-          newErrors.username = '사용자명은 20자 이하여야 합니다.';
-        } else if (!/^[a-zA-Z0-9가-���_]+$/.test(value)) {
-          newErrors.username = '사용자명은 영문, 한글, 숫자, 언더스코어만 사용 가능합니다.';
-        } else {
-          delete newErrors.username;
-        }
-        break;
-
-      case 'email':
-        if (!value) {
-          newErrors.email = '이메일을 입력해주세요.';
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-          newErrors.email = '올바른 이메일 형식을 입력해주세요.';
-        } else {
-          delete newErrors.email;
-        }
-        break;
-
-      case 'password':
-        if (!value) {
-          newErrors.password = '비밀번호를 입력해주세요.';
-        } else if (value.length < 8) {
-          newErrors.password = '비밀번호는 8자 이상이어야 합니다.';
-        } else if (!/(?=.*[a-zA-Z])(?=.*\d)/.test(value)) {
-          newErrors.password = '비밀번호는 영문과 숫자를 포함해야 합니다.';
-        } else {
-          delete newErrors.password;
-        }
-        break;
-
-      case 'confirmPassword':
-        if (!value) {
-          newErrors.confirmPassword = '비밀번호 확인을 입력해주세요.';
-        } else if (value !== formData.password) {
-          newErrors.confirmPassword = '비밀번호가 일치하지 않습니다.';
-        } else {
-          delete newErrors.confirmPassword;
-        }
-        break;
-    }
-
-    setErrors(newErrors);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 전체 폼 유효성 검사 (동기적으로 실행)
-    const newErrors = {};
-    
-    // 사용자명 검증
-    if (!formData.username) {
-      newErrors.username = '사용자명을 입력해주세요.';
-    } else if (formData.username.length < 2) {
-      newErrors.username = '사용자명은 2자 이상이어야 합니다.';
-    } else if (formData.username.length > 20) {
-      newErrors.username = '사용자명은 20자 이하여야 합니다.';
-    } else if (!/^[a-zA-Z0-9가-힣_]+$/.test(formData.username)) {
-      newErrors.username = '사용자명은 영문, 한글, 숫자, 언더스코어만 사용 가능합니다.';
-    }
-
-    // 이메일 검증
-    if (!formData.email) {
-      newErrors.email = '이메일을 입력해주세요.';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = '올바른 이메일 형식을 입력해주세요.';
-    }
-
-    // 비밀번호 검증
-    if (!formData.password) {
-      newErrors.password = '비밀번호를 입력해주세요.';
-    } else if (formData.password.length < 8) {
-      newErrors.password = '비밀번호는 8자 이상이어야 합니다.';
-    } else if (!/(?=.*[a-zA-Z])(?=.*\d)/.test(formData.password)) {
-      newErrors.password = '비밀번호는 영문과 숫자를 포함해야 합니다.';
-    }
-
-    // 비밀번호 확인 검증
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = '비밀번호 확인을 입력해주세요.';
-    } else if (formData.confirmPassword !== formData.password) {
-      newErrors.confirmPassword = '비밀번호가 일치하지 않습니다.';
-    }
+    // 전체 폼 유효성 검사 (validateSignupForm 유틸리티 사용)
+    const newErrors = validateSignupForm(formData);
 
     // 에러 상태 업데이트
     setErrors(newErrors);
@@ -470,17 +373,8 @@ function Signup() {
             />
           </InputGroup>
 
-          {error && (
-            <StatusMessage $type="error">
-              {error}
-            </StatusMessage>
-          )}
-
-          {success && (
-            <StatusMessage $type="success">
-              {success}
-            </StatusMessage>
-          )}
+          <StatusMessage type="error">{error}</StatusMessage>
+          <StatusMessage type="success">{success}</StatusMessage>
 
           <Button type="submit" disabled={loading}>
             {loading ? '회원가입 중...' : '회원가입'}

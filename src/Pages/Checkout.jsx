@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAccount } from 'wagmi';
@@ -137,7 +137,7 @@ const Button = styled.button`
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.radius.md};
   font-size: ${({ theme }) => theme.font.size.md};
-  font-weight: ${({ theme }) => theme.font.weight.semibold};
+  font-weight: Georgian({ theme }) => theme.font.weight.semibold};
   cursor: pointer;
   transition: ${({ theme }) => theme.transition.normal};
 
@@ -197,7 +197,7 @@ const LoadingContainer = styled.div`
 function Checkout() {
   const { listingId } = useParams();
   const navigate = useNavigate();
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
 
   const [metadata, setMetadata] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
@@ -208,6 +208,17 @@ function Checkout() {
   const { tokenURI, isLoading: tokenURILoading } = useTokenURI(listing?.tokenId);
   const { feePercent } = useFeePercent();
   const { buy, isPending, isConfirming, isSuccess, error } = useBuy();
+
+  // 가격 데이터를 useMemo로 최적화
+  const priceData = useMemo(() => {
+    if (!listing) return { price: BigInt(0), fee: BigInt(0), total: BigInt(0) };
+    
+    const price = BigInt(listing.price);
+    const fee = feePercent ? (price * BigInt(feePercent)) / BigInt(10000) : BigInt(0);
+    const total = price;
+    
+    return { price, fee, total };
+  }, [listing, feePercent]);
 
   // 메타데이터 로드
   useEffect(() => {
@@ -230,13 +241,9 @@ function Checkout() {
     const calculateKrwPrices = async () => {
       if (listing) {
         try {
-          const price = BigInt(listing.price);
-          const fee = feePercent ? (price * BigInt(feePercent)) / BigInt(10000) : BigInt(0);
-          const total = price;
-
-          const priceEth = parseFloat(formatEther(price));
-          const feeEth = parseFloat(formatEther(fee));
-          const totalEth = parseFloat(formatEther(total));
+          const priceEth = parseFloat(formatEther(priceData.price));
+          const feeEth = parseFloat(formatEther(priceData.fee));
+          const totalEth = parseFloat(formatEther(priceData.total));
 
           const priceKrw = await convertETHToKRW(priceEth);
           const feeKrw = await convertETHToKRW(feeEth);
@@ -247,9 +254,9 @@ function Checkout() {
           console.error('원화 가격 계산 실패:', error);
           // 폴백: 고정 환율 사용
           const ETH_TO_KRW_RATE = 3000000;
-          const priceEth = parseFloat(formatEther(BigInt(listing.price)));
-          const feeEth = feePercent ? parseFloat(formatEther((BigInt(listing.price) * BigInt(feePercent)) / BigInt(10000))) : 0;
-          const totalEth = priceEth;
+          const priceEth = parseFloat(formatEther(priceData.price));
+          const feeEth = parseFloat(formatEther(priceData.fee));
+          const totalEth = parseFloat(formatEther(priceData.total));
 
           setKrwPrices({
             price: Math.round(priceEth * ETH_TO_KRW_RATE),
@@ -261,7 +268,7 @@ function Checkout() {
     };
 
     calculateKrwPrices();
-  }, [listing, feePercent]);
+  }, [listing, feePercent, priceData]);
 
   // 구매 성공 시
   useEffect(() => {
@@ -329,10 +336,6 @@ function Checkout() {
     );
   }
 
-  const price = BigInt(listing.price);
-  const fee = feePercent ? (price * BigInt(feePercent)) / BigInt(10000) : BigInt(0);
-  const total = price;
-
   const imageUrl = metadata?.image ? ipfsToHttp(metadata.image) : '/placeholder-nft.png';
 
   return (
@@ -359,7 +362,7 @@ function Checkout() {
             <PriceLabel>가격</PriceLabel>
             <PriceValue>
               {krwPrices.price.toLocaleString()}원
-              <PriceSubValue>({formatEther(price)} ETH)</PriceSubValue>
+              <PriceSubValue>({formatEther(priceData.price)} ETH)</PriceSubValue>
             </PriceValue>
           </PriceRow>
 
@@ -367,7 +370,7 @@ function Checkout() {
             <PriceLabel>수수료 ({feePercent ? (Number(feePercent) / 100).toFixed(2) : '0'}%)</PriceLabel>
             <PriceValue>
               {krwPrices.fee.toLocaleString()}원
-              <PriceSubValue>({formatEther(fee)} ETH)</PriceSubValue>
+              <PriceSubValue>({formatEther(priceData.fee)} ETH)</PriceSubValue>
             </PriceValue>
           </PriceRow>
 
@@ -375,7 +378,7 @@ function Checkout() {
             <PriceLabel>총 결제 금액</PriceLabel>
             <PriceValue>
               {krwPrices.total.toLocaleString()}원
-              <PriceSubValue>({formatEther(total)} ETH)</PriceSubValue>
+              <PriceSubValue>({formatEther(priceData.total)} ETH)</PriceSubValue>
             </PriceValue>
           </PriceRow>
         </PriceBreakdown>

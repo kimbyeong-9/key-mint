@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAccount, useChainId } from 'wagmi';
 import BadgeNFT from '../components/BadgeNFT';
 import PaymentModal from '../components/PaymentModal';
 import { useNFTDetail } from '../hooks/useNFTDetail';
-import { useNFTListing } from '../hooks/useNFTListing';
 import { useUser } from '../contexts/UserContext';
 import { formatEther, shortenAddress, formatDate } from '../lib/format';
+import { getOptimizedImageUrl } from '../lib/imageUtils';
 
 // 네트워크별 Etherscan URL
 const EXPLORER_URLS = {
@@ -235,15 +235,6 @@ const DetailValue = styled.span`
   font-weight: ${({ theme }) => theme.font.weight.medium};
 `;
 
-const AddressLink = styled.a`
-  color: ${({ theme }) => theme.colors.primary};
-  text-decoration: none;
-
-  &:hover {
-    text-decoration: underline;
-  }
-`;
-
 const LoadingContainer = styled.div`
   display: flex;
   justify-content: center;
@@ -387,20 +378,8 @@ function Detail() {
     );
   }
 
-  // 이미지 URL 처리 - Supabase Storage 이미지 변환 적용
-  const getOptimizedImageUrl = (url) => {
-    if (!url) return '/placeholder-nft.png';
-    
-    // Supabase Storage URL인 경우 변환 파라미터 추가
-    if (url.includes('supabase.co/storage')) {
-      // 상세 페이지 이미지: 800x800 크기로 최적화
-      return `${url}?width=800&height=800&quality=85&format=webp`;
-    }
-    
-    return url;
-  };
-
-  const imageUrl = nft.image ? getOptimizedImageUrl(nft.image) : '/placeholder-nft.png';
+  // imageUtils의 getOptimizedImageUrl 사용 (detail 크기: 800x800)
+  const imageUrl = getOptimizedImageUrl(nft.image, 'detail');
 
   return (
     <Container>
