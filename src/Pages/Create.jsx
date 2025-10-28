@@ -338,7 +338,7 @@ function Create() {
   const navigate = useNavigate();
   const { isConnected } = useAccount();
   const { user } = useUser();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(true);
   
   // 블록체인 민팅 훅
   const { 
@@ -380,6 +380,7 @@ function Create() {
     setErrors({});
     setIsDragOver(false);
     setUploadProgress(0);
+    navigate('/'); // 모달 닫을 때 홈으로 이동
   };
 
 
@@ -776,25 +777,6 @@ function Create() {
 
   return (
     <Container>
-      <Title>NFT 등록</Title>
-      <Subtitle>나만의 디지털 아트를 민팅하고 판매하세요</Subtitle>
-
-      <CreateButton onClick={handleOpenModal}>
-        <svg
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
-        새 NFT 등록
-      </CreateButton>
-
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
