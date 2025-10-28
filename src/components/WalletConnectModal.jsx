@@ -43,19 +43,14 @@ const Description = styled.p`
 
 const ButtonGroup = styled.div`
   display: flex;
-  gap: ${({ theme }) => theme.spacing(2)};
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing(3)};
   justify-content: center;
-  flex-wrap: wrap;
-
-  & > * {
-    flex: 1;
-    min-width: 140px;
-  }
+  align-items: stretch;
 `;
 
 const ConnectButtonWrapper = styled.div`
-  flex: 1;
-  min-width: 140px;
+  width: 100%;
   
   /* RainbowKit ConnectButton 스타일 오버라이드 */
   & > div {
@@ -73,8 +68,7 @@ const ConnectButtonWrapper = styled.div`
 `;
 
 const CloseButton = styled.button`
-  flex: 1;
-  min-width: 140px;
+  width: 100%;
   padding: ${({ theme }) => theme.spacing(2)} ${({ theme }) => theme.spacing(4)};
   background: ${({ theme }) => theme.colors.bgLight};
   color: ${({ theme }) => theme.colors.textSub};
@@ -87,7 +81,7 @@ const CloseButton = styled.button`
 
   &:hover {
     background: ${({ theme }) => theme.colors.card};
-    border-color: ${({ theme }) => theme.colors.primary};
+    border-color: ${({ theme أوطيو.colors.primary};
   }
 `;
 
