@@ -5,6 +5,7 @@ import { useAccount } from 'wagmi';
 import { ConnectButton, useConnectModal } from '@rainbow-me/rainbowkit';
 import { useUser } from '../contexts/UserContext';
 import { useWalletConnection } from '../hooks/useWalletConnection';
+import walletIcon from '../images/money_15524963.png';
 
 const HeaderContainer = styled.header`
   width: 100%;
@@ -166,7 +167,7 @@ const WalletButton = styled.button`
 `;
 
 const MobileMenuButton = styled.button`
-  display: none;
+  display: block;
   background: none;
   border: none;
   color: ${({ theme }) => theme.colors.text};
@@ -180,9 +181,6 @@ const MobileMenuButton = styled.button`
     background: ${({ theme }) => theme.colors.card};
   }
 
-  @media (max-width: ${({ theme }) => theme.breakpoints.tablet}) {
-    display: block;
-  }
 `;
 
 const LogoutButton = styled.button`
@@ -762,11 +760,22 @@ function Header() {
                     aria-label="지갑 연결"
                     title="지갑 연결"
                   >
-                    👛
+                    <img 
+                      src={walletIcon} 
+                      alt="지갑" 
+                      style={{ 
+                        width: '24px', 
+                        height: '24px',
+                        filter: 'brightness(0) invert(1)'
+                      }} 
+                    />
                   </WalletButton>
-                  <DesktopLogoutButton onClick={logout}>
-                    로그아웃
-                  </DesktopLogoutButton>
+                  <MobileMenuButton
+                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                    aria-label="메뉴"
+                  >
+                    {mobileMenuOpen ? '✕' : '☰'}
+                  </MobileMenuButton>
                 </>
               ) : (
                 // 로그인되지 않은 상태
@@ -777,15 +786,7 @@ function Header() {
               )}
             </DesktopNav>
 
-            {/* 햄버거 버튼 - 로그인된 사용자만 표시 */}
-            {isLoggedIn && (
-              <MobileMenuButton
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                aria-label="메뉴"
-              >
-                {mobileMenuOpen ? '✕' : '☰'}
-              </MobileMenuButton>
-            )}
+            {/* 햄버거 버튼 제거 - DesktopNav로 이동됨 */}
           </Nav>
 
           {/* 햄버거 드롭다운 메뉴 - 로그인된 사용자만 */}

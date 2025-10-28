@@ -374,7 +374,7 @@ function Detail() {
   // 로그인되지 않은 상태에서는 지갑 연결 모달만 표시
   if (!user) {
     return (
-      <>
+      <Container>
         <WalletConnectModal 
           isOpen={showWalletModal}
           onClose={() => {
@@ -382,7 +382,7 @@ function Detail() {
             navigate('/');
           }}
         />
-      </>
+      </Container>
     );
   }
 
