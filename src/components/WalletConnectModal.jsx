@@ -64,6 +64,7 @@ const ConnectButtonWrapper = styled.div`
     font-weight: ${({ theme }) => theme.font.weight.medium} !important;
     border-radius: ${({ theme }) => theme.radius.md} !important;
     transition: ${({ theme }) => theme.transition.normal} !important;
+    min-height: 48px !important; /* 나중에 하기 버튼과 동일한 높이 */
   }
 `;
 
@@ -78,6 +79,7 @@ const CloseButton = styled.button`
   font-weight: ${({ theme }) => theme.font.weight.medium};
   cursor: pointer;
   transition: ${({ theme }) => theme.transition.normal};
+  min-height: 48px; /* 지갑 연결 버튼과 동일한 높이 */
 
   &:hover {
     background: ${({ theme }) => theme.colors.card};
