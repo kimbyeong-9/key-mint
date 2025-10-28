@@ -65,6 +65,23 @@ const ConnectButtonWrapper = styled.div`
     border-radius: ${({ theme }) => theme.radius.md} !important;
     transition: ${({ theme }) => theme.transition.normal} !important;
     min-height: 48px !important; /* 나중에 하기 버튼과 동일한 높이 */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+  
+  /* RainbowKit 내부 요소들 중앙 정렬 */
+  button > div {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+  }
+  
+  button span {
+    text-align: center !important;
+    width: 100% !important;
   }
 `;
 
