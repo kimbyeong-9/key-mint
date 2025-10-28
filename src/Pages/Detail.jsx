@@ -4,7 +4,7 @@ import styled from 'styled-components';
 import { useAccount, useChainId } from 'wagmi';
 import BadgeNFT from '../components/BadgeNFT';
 import PaymentModal from '../components/PaymentModal';
-import WalletConnectModal from '../components/WalletConnectModal';
+import LoginRequiredModal from '../components/LoginRequiredModal';
 import { useNFTDetail } from '../hooks/useNFTDetail';
 import { useUser } from '../contexts/UserContext';
 import { formatEther, shortenAddress, formatDate } from '../lib/format';
@@ -320,14 +320,14 @@ function Detail() {
   // 결제 모달 상태
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   
-  // 지갑 연결 모달 상태
-  const [showWalletModal, setShowWalletModal] = useState(false);
+  // 로그인 필요 모달 상태
+  const [showLoginModal, setShowLoginModal] = useState(false);
   
   // 로그인 상태 확인
   useEffect(() => {
     if (!user) {
       // 로그인되지 않은 상태에서는 상세 페이지를 보여주지 않고 모달만 표시
-      setShowWalletModal(true);
+      setShowLoginModal(true);
     }
   }, [user]);
   
@@ -371,15 +371,14 @@ function Detail() {
     setShowImageModal(false);
   };
 
-  // 로그인되지 않은 상태에서는 지갑 연결 모달만 표시
+  // 로그인되지 않은 상태에서는 로그인 필요 모달만 표시
   if (!user) {
     return (
       <Container>
-        <WalletConnectModal 
-          isOpen={showWalletModal}
+        <LoginRequiredModal 
+          isOpen={showLoginModal}
           onClose={() => {
-            setShowWalletModal(false);
-            navigate('/');
+            setShowLoginModal(false);
           }}
         />
       </Container>
