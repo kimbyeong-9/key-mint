@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAccount, useChainId } from 'wagmi';
 import BadgeNFT from '../components/BadgeNFT';
 import PaymentModal from '../components/PaymentModal';
+import WalletConnectModal from '../components/WalletConnectModal';
 import { useNFTDetail } from '../hooks/useNFTDetail';
 import { useUser } from '../contexts/UserContext';
 import { formatEther, shortenAddress, formatDate } from '../lib/format';
@@ -319,6 +320,17 @@ function Detail() {
   // 결제 모달 상태
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   
+  // 지갑 연결 모달 상태
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  
+  // 로그인 상태 확인
+  useEffect(() => {
+    if (!user) {
+      // 로그인되지 않은 상태에서는 상세 페이지를 보여주지 않고 모달만 표시
+      setShowWalletModal(true);
+    }
+  }, [user]);
+  
   // 원화 가격은 useNFTDetail에서 제공되는 priceKrw 필드 사용
 
   const handleBuy = () => {
@@ -358,6 +370,21 @@ function Detail() {
   const handleCloseImageModal = () => {
     setShowImageModal(false);
   };
+
+  // 로그인되지 않은 상태에서는 지갑 연결 모달만 표시
+  if (!user) {
+    return (
+      <>
+        <WalletConnectModal 
+          isOpen={showWalletModal}
+          onClose={() => {
+            setShowWalletModal(false);
+            navigate('/');
+          }}
+        />
+      </>
+    );
+  }
 
   if (loading) {
     return (
