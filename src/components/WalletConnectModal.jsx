@@ -81,7 +81,7 @@ const CloseButton = styled.button`
 
   &:hover {
     background: ${({ theme }) => theme.colors.card};
-    border-color: ${({ theme أوطيو.colors.primary};
+    border-color: ${({ theme }) => theme.colors.primary};
   }
 `;
 
