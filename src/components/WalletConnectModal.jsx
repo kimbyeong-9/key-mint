@@ -53,7 +53,28 @@ const ButtonGroup = styled.div`
   }
 `;
 
+const ConnectButtonWrapper = styled.div`
+  flex: 1;
+  min-width: 140px;
+  
+  /* RainbowKit ConnectButton 스타일 오버라이드 */
+  & > div {
+    width: 100% !important;
+  }
+  
+  button {
+    width: 100% !important;
+    padding: ${({ theme }) => theme.spacing(2)} ${({ theme }) => theme.spacing(4)} !important;
+    font-size: ${({ theme }) => theme.font.size.md} !important;
+    font-weight: ${({ theme }) => theme.font.weight.medium} !important;
+    border-radius: ${({ theme }) => theme.radius.md} !important;
+    transition: ${({ theme }) => theme.transition.normal} !important;
+  }
+`;
+
 const CloseButton = styled.button`
+  flex: 1;
+  min-width: 140px;
   padding: ${({ theme }) => theme.spacing(2)} ${({ theme }) => theme.spacing(4)};
   background: ${({ theme }) => theme.colors.bgLight};
   color: ${({ theme }) => theme.colors.textSub};
@@ -97,7 +118,9 @@ function WalletConnectModal({ isOpen, onClose }) {
         </Description>
         
         <ButtonGroup>
-          <ConnectButton />
+          <ConnectButtonWrapper>
+            <ConnectButton />
+          </ConnectButtonWrapper>
           <CloseButton onClick={onClose}>
             나중에 하기
           </CloseButton>
