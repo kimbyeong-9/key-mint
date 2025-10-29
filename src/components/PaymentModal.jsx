@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { requestPayment, convertETHToKRW, convertKRWToETH } from '../lib/tossPayments';
+import { requestPayment, convertETHToKRW } from '../lib/tossPayments';
 import { useUser } from '../contexts/UserContext';
-import { useETHBalance } from '../hooks/useETHBalance';
+import { addCommas, removeCommas } from '../lib/priceUtils';
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -99,40 +99,43 @@ const PriceLabel = styled.label`
   margin-bottom: ${({ theme }) => theme.spacing(1)};
 `;
 
+const PriceInputContainer = styled.div`
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: ${({ theme }) => theme.spacing(1)};
+`;
+
 const PriceInput = styled.input`
   width: 100%;
   padding: ${({ theme }) => theme.spacing(2)};
+  padding-right: 40px;
   border: 1px solid ${({ theme }) => theme.colors.border};
   border-radius: ${({ theme }) => theme.radius.md};
   font-size: ${({ theme }) => theme.font.size.md};
-  background: ${({ theme }) => theme.colors.bg};
+  background: ${({ theme }) => theme.colors.bgLight};
   color: ${({ theme }) => theme.colors.text};
-  margin-bottom: ${({ theme }) => theme.spacing(1)};
+  cursor: not-allowed;
 
   &:focus {
     outline: none;
-    border-color: ${({ theme }) => theme.colors.primary};
+    border-color: ${({ theme }) => theme.colors.border};
   }
 `;
 
-const PriceDisplay = styled.div`
-  font-size: ${({ theme }) => theme.font.size.lg};
-  font-weight: ${({ theme }) => theme.font.weight.bold};
-  color: ${({ theme }) => theme.colors.primary};
-  text-align: center;
-  padding: ${({ theme }) => theme.spacing(1)} 0;
-  margin: ${({ theme }) => theme.spacing(1)} 0;
-  background: ${({ theme }) => `${theme.colors.primary}10`};
-  border: 1px solid ${({ theme }) => `${theme.colors.primary}30`};
-  border-radius: ${({ theme }) => theme.radius.md};
+const CurrencyUnit = styled.span`
+  position: absolute;
+  right: ${({ theme }) => theme.spacing(2)};
+  color: ${({ theme }) => theme.colors.textSub};
+  font-size: ${({ theme }) => theme.font.size.md};
+  pointer-events: none;
+  user-select: none;
 `;
 
-const PriceInfo = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+const ETHInfo = styled.div`
   font-size: ${({ theme }) => theme.font.size.sm};
   color: ${({ theme }) => theme.colors.textSub};
+  margin-top: ${({ theme }) => theme.spacing(0.5)};
 `;
 
 const ButtonGroup = styled.div`
@@ -205,31 +208,9 @@ const ErrorMessage = styled.div`
   font-size: ${({ theme }) => theme.font.size.sm};
 `;
 
-const MockPaymentNotice = styled.div`
-  background: #fef3c7;
-  border: 1px solid #f59e0b;
-  border-radius: ${({ theme }) => theme.radius.md};
-  padding: ${({ theme }) => theme.spacing(2)};
-  margin-bottom: ${({ theme }) => theme.spacing(3)};
-  display: flex;
-  align-items: center;
-  gap: ${({ theme }) => theme.spacing(2)};
-`;
-
-const MockNoticeIcon = styled.span`
-  font-size: 20px;
-`;
-
-const MockNoticeText = styled.span`
-  color: #92400e;
-  font-size: ${({ theme }) => theme.font.size.sm};
-  font-weight: ${({ theme }) => theme.font.weight.medium};
-`;
-
-function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
+function PaymentModal({ isOpen, onClose, nft }) {
   const { user } = useUser();
-  const { balance, fetchBalance } = useETHBalance();
-  const [krwAmount, setKrwAmount] = useState(0);
+  const [krwAmount, setKrwAmount] = useState(''); // 포맷팅된 문자열로 변경
   const [ethAmount, setEthAmount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -240,14 +221,14 @@ function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
       if (nft && nft.price) {
         try {
           const krw = await convertETHToKRW(parseFloat(nft.price));
-          setKrwAmount(krw);
+          setKrwAmount(addCommas(krw)); // 콤마 포맷팅 적용
           setEthAmount(parseFloat(nft.price));
         } catch (error) {
           console.error('환율 변환 실패:', error);
           // 폴백: 고정 환율 사용
           const ETH_TO_KRW_RATE = 3000000;
           const krw = Math.round(parseFloat(nft.price) * ETH_TO_KRW_RATE);
-          setKrwAmount(krw);
+          setKrwAmount(addCommas(krw)); // 콤마 포맷팅 적용
           setEthAmount(parseFloat(nft.price));
         }
       }
@@ -256,35 +237,7 @@ function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
     initializeAmounts();
   }, [nft]);
 
-  // KRW 입력 시 ETH로 변환
-  const handleKrwChange = async (e) => {
-    const krw = parseInt(e.target.value) || 0;
-    setKrwAmount(krw);
-    try {
-      const eth = await convertKRWToETH(krw);
-      setEthAmount(eth);
-    } catch (error) {
-      console.error('환율 변환 실패:', error);
-      // 폴백: 고정 환율 사용
-      const ETH_TO_KRW_RATE = 3000000;
-      setEthAmount(parseFloat((krw / ETH_TO_KRW_RATE).toFixed(6)));
-    }
-  };
-
-  // ETH 입력 시 KRW로 변환
-  const handleEthChange = async (e) => {
-    const eth = parseFloat(e.target.value) || 0;
-    setEthAmount(eth);
-    try {
-      const krw = await convertETHToKRW(eth);
-      setKrwAmount(krw);
-    } catch (error) {
-      console.error('환율 변환 실패:', error);
-      // 폴백: 고정 환율 사용
-      const ETH_TO_KRW_RATE = 3000000;
-      setKrwAmount(Math.round(eth * ETH_TO_KRW_RATE));
-    }
-  };
+  // 더 이상 사용하지 않음 - 읽기 전용으로 변경됨
 
   // 실제 토스페이먼츠 결제 요청 처리
   const handlePayment = async () => {
@@ -298,7 +251,9 @@ function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
       return;
     }
 
-    if (krwAmount <= 0) {
+    // 콤마 제거 후 숫자 검증
+    const krwNumeric = parseInt(removeCommas(krwAmount)) || 0;
+    if (krwNumeric <= 0) {
       setError('결제 금액을 입력해주세요.');
       return;
     }
@@ -377,24 +332,19 @@ function PaymentModal({ isOpen, onClose, nft, onSuccess }) {
         )}
 
         <PriceSection>
-          <PriceLabel>결제 금액 (KRW)</PriceLabel>
-          <PriceInput
-            type="number"
-            value={krwAmount}
-            onChange={handleKrwChange}
-            placeholder="결제 금액을 입력하세요"
-            min="0"
-            step="1000"
-          />
-          {krwAmount > 0 && (
-            <PriceDisplay>
-              {krwAmount.toLocaleString()}원
-            </PriceDisplay>
+          <PriceLabel>결제 금액</PriceLabel>
+          <PriceInputContainer>
+            <PriceInput
+              type="text"
+              value={krwAmount}
+              readOnly
+              placeholder="결제 금액"
+            />
+            <CurrencyUnit>원</CurrencyUnit>
+          </PriceInputContainer>
+          {krwAmount && removeCommas(krwAmount) > 0 && (
+            <ETHInfo>ETH: {ethAmount.toFixed(6)}</ETHInfo>
           )}
-          <PriceInfo>
-            <span>ETH: {ethAmount.toFixed(6)}</span>
-            <span>환율: 1 ETH = {Math.round(3000000).toLocaleString()} KRW</span>
-          </PriceInfo>
         </PriceSection>
 
         <ButtonGroup>
