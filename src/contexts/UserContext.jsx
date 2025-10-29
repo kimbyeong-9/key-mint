@@ -7,16 +7,58 @@ const UserContext = createContext();
 export function UserProvider({ children }) {
   const { address, isConnected } = useAccount();
   const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // 초기 로딩 상태를 true로 설정
   const [userType, setUserType] = useState('guest'); // 'guest', 'web2', 'web3'
 
-  // Auth 상태 변경 감지
+  // Auth 상태 변경 감지 및 초기 세션 복원
   useEffect(() => {
     let subscription = null;
     
     try {
       // Supabase Auth가 사용 가능한지 확인
       if (typeof window !== 'undefined' && window.supabase) {
+        // 1. 초기 세션 복원 (새로운 기기에서 로그인 상태 유지)
+        const restoreSession = async () => {
+          try {
+            console.log('🔄 초기 세션 복원 중...');
+            const { data: { session }, error } = await window.supabase.auth.getSession();
+            
+            if (error) {
+              console.error('❌ 세션 복원 실패:', error);
+              setUser(null);
+              setIsLoading(false);
+              return;
+            }
+            
+            if (session?.user) {
+              // 기존 세션이 있는 경우 사용자 정보 복원
+              const userData = {
+                id: session.user.id,
+                email: session.user.email,
+                username: session.user.user_metadata?.username || session.user.user_metadata?.display_name || 'Unknown',
+                display_name: session.user.user_metadata?.display_name || session.user.user_metadata?.username || session.user.user_metadata?.full_name || 'Unknown',
+                address: session.user.user_metadata?.address || null,
+                wallet_address: session.user.user_metadata?.wallet_address || null,
+                is_web3_user: session.user.user_metadata?.is_web3_user || false,
+                created_at: session.user.created_at,
+              };
+              setUser(userData);
+              console.log('✅ 기존 세션 복원됨:', userData);
+            } else {
+              console.log('ℹ️ 기존 세션 없음 - 로그아웃 상태');
+              setUser(null);
+            }
+            
+            // 세션 복원 완료 후 로딩 상태 해제
+            setIsLoading(false);
+          } catch (error) {
+            console.error('❌ 세션 복원 중 오류:', error);
+            setUser(null);
+            setIsLoading(false);
+          }
+        };
+
+        // 2. Auth 상태 변경 감지
         const authStateChange = onAuthStateChange(async (event, session) => {
           console.log('🔍 Auth 상태 변경:', { event, session });
           
@@ -40,6 +82,9 @@ export function UserProvider({ children }) {
             console.log('👋 사용자 로그아웃됨');
           }
         });
+
+        // 초기 세션 복원 실행
+        restoreSession();
 
         if (authStateChange?.data?.subscription) {
           subscription = authStateChange.data.subscription;

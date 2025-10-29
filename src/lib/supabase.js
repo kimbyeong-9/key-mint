@@ -30,8 +30,12 @@ if (supabaseUrl && supabaseAnonKey) {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        // 세션 지속성을 위한 추가 설정
+        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
         // Refresh Token 오류 시 자동으로 세션 제거
-        onAuthStateChange: (event) => {
+        onAuthStateChange: (event, session) => {
+          console.log('🔍 Supabase Auth 상태 변경:', { event, session: !!session });
+          
           if (event === 'TOKEN_REFRESHED') {
             console.log('✅ 토큰 갱신 성공');
           }
@@ -40,6 +44,7 @@ if (supabaseUrl && supabaseAnonKey) {
             // localStorage 클리어
             if (typeof window !== 'undefined') {
               localStorage.removeItem('supabase.auth.token');
+              localStorage.removeItem('sb-' + supabaseUrl.split('//')[1].split('.')[0] + '-auth-token');
             }
           }
           if (event === 'TOKEN_EXPIRED') {
@@ -51,6 +56,9 @@ if (supabaseUrl && supabaseAnonKey) {
                 window.location.href = '/login';
               }
             }
+          }
+          if (event === 'SIGNED_IN') {
+            console.log('✅ 로그인됨 - 세션 저장됨');
           }
         },
       },
