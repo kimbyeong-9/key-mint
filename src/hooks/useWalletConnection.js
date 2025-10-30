@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAccount, useDisconnect } from 'wagmi';
+import { supabase, updateUserMetadata } from '../lib/supabase';
 
 /**
  * 지갑 연결 상태를 관리하고 Supabase에 저장하는 커스텀 훅
@@ -21,33 +22,40 @@ export const useWalletConnection = (user) => {
       console.log('💾 지갑 연결 정보 저장 중...', { walletAddress, walletType, chainId });
 
       // 기존 활성 연결을 비활성화
-      await window.supabaseMCP?.execute_sql({
-        query: `UPDATE public.wallet_connections 
-                SET is_active = false, disconnected_at = NOW() 
-                WHERE user_id = '${user.id}' AND is_active = true`
-      });
+      await supabase
+        .from('wallet_connections')
+        .update({ is_active: false, disconnected_at: new Date().toISOString() })
+        .eq('user_id', user.id)
+        .eq('is_active', true);
 
       // 새로운 지갑 연결 정보 저장
-      const result = await window.supabaseMCP?.execute_sql({
-        query: `INSERT INTO public.wallet_connections 
-                (user_id, wallet_address, wallet_type, chain_id, is_active, connected_at) 
-                VALUES ('${user.id}', '${walletAddress}', '${walletType}', ${chainId}, true, NOW())
-                RETURNING *`
+      const { data: insertData, error: insertError } = await supabase
+        .from('wallet_connections')
+        .insert({
+          user_id: user.id,
+          wallet_address: walletAddress,
+          wallet_type: walletType,
+          chain_id: chainId,
+          is_active: true,
+          connected_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      console.log('✅ 지갑 연결 정보 저장 완료:', insertData);
+
+      // 사용자 메타데이터 업데이트 (클라이언트 허용 방식을 사용)
+      await updateUserMetadata({
+        wallet_address: walletAddress,
+        is_web3_user: true,
+        wallet_type: walletType,
       });
 
-      if (result && result.length > 0) {
-        console.log('✅ 지갑 연결 정보 저장 완료:', result[0]);
-        
-        // 사용자 메타데이터도 업데이트
-        await window.supabaseMCP?.execute_sql({
-          query: `UPDATE auth.users SET 
-            raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || 
-            '{"wallet_address": "${walletAddress}", "is_web3_user": true, "wallet_type": "${walletType}"}'::jsonb
-            WHERE id = '${user.id}'`
-        });
-
-        return result[0];
-      }
+      return insertData;
     } catch (error) {
       console.error('❌ 지갑 연결 정보 저장 실패:', error);
       setError('지갑 연결 정보 저장에 실패했습니다.');
@@ -67,17 +75,17 @@ export const useWalletConnection = (user) => {
 
       // Supabase에서 지갑 연결 정보 비활성화
       if (user) {
-        await window.supabaseMCP?.execute_sql({
-          query: `UPDATE public.wallet_connections 
-                  SET is_active = false, disconnected_at = NOW() 
-                  WHERE user_id = '${user.id}' AND is_active = true`
-        });
+        await supabase
+          .from('wallet_connections')
+          .update({ is_active: false, disconnected_at: new Date().toISOString() })
+          .eq('user_id', user.id)
+          .eq('is_active', true);
 
         // 사용자 메타데이터에서 지갑 정보 제거
-        await window.supabaseMCP?.execute_sql({
-          query: `UPDATE auth.users SET 
-            raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) - 'wallet_address' - 'is_web3_user' - 'wallet_type'
-            WHERE id = '${user.id}'`
+        await updateUserMetadata({
+          wallet_address: null,
+          is_web3_user: false,
+          wallet_type: null,
         });
       }
 
@@ -120,13 +128,19 @@ export const useWalletConnection = (user) => {
     if (!user) return null;
 
     try {
-      const result = await window.supabaseMCP?.execute_sql({
-        query: `SELECT * FROM public.wallet_connections 
-                WHERE user_id = '${user.id}' AND is_active = true 
-                ORDER BY connected_at DESC LIMIT 1`
-      });
+      const { data, error: selectError } = await supabase
+        .from('wallet_connections')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .order('connected_at', { ascending: false })
+        .limit(1);
 
-      return result && result.length > 0 ? result[0] : null;
+      if (selectError) {
+        throw selectError;
+      }
+
+      return data && data.length > 0 ? data[0] : null;
     } catch (error) {
       console.error('❌ 활성 지갑 연결 정보 조회 실패:', error);
       return null;

@@ -32,35 +32,6 @@ if (supabaseUrl && supabaseAnonKey) {
         detectSessionInUrl: true,
         // 세션 지속성을 위한 추가 설정
         storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-        // Refresh Token 오류 시 자동으로 세션 제거
-        onAuthStateChange: (event, session) => {
-          console.log('🔍 Supabase Auth 상태 변경:', { event, session: !!session });
-          
-          if (event === 'TOKEN_REFRESHED') {
-            console.log('✅ 토큰 갱신 성공');
-          }
-          if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
-            console.log('🔒 로그아웃됨');
-            // localStorage 클리어
-            if (typeof window !== 'undefined') {
-              localStorage.removeItem('supabase.auth.token');
-              localStorage.removeItem('sb-' + supabaseUrl.split('//')[1].split('.')[0] + '-auth-token');
-            }
-          }
-          if (event === 'TOKEN_EXPIRED') {
-            console.warn('⚠️ 토큰 만료됨');
-            // 사용자에게 재로그인 유도
-            if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-              const shouldRelogin = confirm('세션이 만료되었습니다. 다시 로그인하시겠습니까?');
-              if (shouldRelogin) {
-                window.location.href = '/login';
-              }
-            }
-          }
-          if (event === 'SIGNED_IN') {
-            console.log('✅ 로그인됨 - 세션 저장됨');
-          }
-        },
       },
       global: {
         headers: {
@@ -267,20 +238,10 @@ export async function signUpWithEmail(userData, metadata = {}) {
     throw new Error('회원가입에 실패했습니다.');
   }
 
-  // 2. 이메일 자동 확인 처리 (개발 환경용)
-  try {
-    const { error: confirmError } = await supabase.auth.admin.updateUserById(data.user.id, {
-      email_confirm: true
-    });
-    
-    if (confirmError) {
-      console.warn('이메일 자동 확인 실패 (무시 가능):', confirmError);
-    } else {
-      console.log('✅ 이메일 자동 확인 완료');
-    }
-  } catch (confirmError) {
-    console.warn('이메일 자동 확인 중 오류 (무시 가능):', confirmError);
-  }
+  // 2. 이메일 확인 안내 (프로덕션 안전모드)
+  // 클라이언트에서 admin API(서비스 키 필요)를 호출하지 않습니다.
+  // 사용자에게 이메일 확인 안내만 제공합니다.
+  console.log('📩 확인 메일 발송됨. 이메일을 확인해주세요.');
 
   // 3. user_profiles 테이블에 프로필 데이터 생성 (RPC 함수 사용)
   try {

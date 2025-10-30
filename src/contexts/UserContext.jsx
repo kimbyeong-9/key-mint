@@ -22,14 +22,26 @@ export function UserProvider({ children }) {
           try {
             console.log('🔄 초기 세션 복원 중...');
             const { data: { session }, error } = await window.supabase.auth.getSession();
-            
+
             if (error) {
               console.error('❌ 세션 복원 실패:', error);
+
+              // Refresh Token 오류인 경우 localStorage 정리
+              if (error.message?.includes('refresh') || error.message?.includes('Refresh Token')) {
+                console.warn('⚠️ Refresh Token 오류 - 로컬 저장소 정리');
+                const keys = Object.keys(localStorage);
+                keys.forEach(key => {
+                  if (key.startsWith('sb-') || key.includes('supabase')) {
+                    localStorage.removeItem(key);
+                  }
+                });
+              }
+
               setUser(null);
               setIsLoading(false);
               return;
             }
-            
+
             if (session?.user) {
               // 기존 세션이 있는 경우 사용자 정보 복원
               const userData = {
@@ -48,11 +60,23 @@ export function UserProvider({ children }) {
               console.log('ℹ️ 기존 세션 없음 - 로그아웃 상태');
               setUser(null);
             }
-            
+
             // 세션 복원 완료 후 로딩 상태 해제
             setIsLoading(false);
           } catch (error) {
             console.error('❌ 세션 복원 중 오류:', error);
+
+            // Refresh Token 관련 오류 처리
+            if (error.message?.includes('refresh') || error.message?.includes('Refresh Token')) {
+              console.warn('⚠️ Refresh Token 오류 - 로컬 저장소 정리');
+              const keys = Object.keys(localStorage);
+              keys.forEach(key => {
+                if (key.startsWith('sb-') || key.includes('supabase')) {
+                  localStorage.removeItem(key);
+                }
+              });
+            }
+
             setUser(null);
             setIsLoading(false);
           }
@@ -61,7 +85,27 @@ export function UserProvider({ children }) {
         // 2. Auth 상태 변경 감지
         const authStateChange = onAuthStateChange(async (event, session) => {
           console.log('🔍 Auth 상태 변경:', { event, session });
-          
+
+          // Refresh Token 오류 처리
+          if (event === 'TOKEN_REFRESHED') {
+            console.log('✅ 토큰 갱신 성공');
+          }
+
+          if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+            console.log('🔒 로그아웃됨');
+            setUser(null);
+            // localStorage에서 모든 Supabase 관련 데이터 제거
+            if (typeof window !== 'undefined') {
+              const keys = Object.keys(localStorage);
+              keys.forEach(key => {
+                if (key.startsWith('sb-') || key.includes('supabase')) {
+                  localStorage.removeItem(key);
+                }
+              });
+            }
+            return;
+          }
+
           if (session?.user) {
             // 로그인된 상태
             const userData = {
